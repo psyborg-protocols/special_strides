@@ -1,23 +1,21 @@
 // =================================================================
-//  SPECIAL STRIDES – 2025 INTAKE AUTOMATION SUITE
+//  SPECIAL STRIDES – INTAKE AUTOMATION SUITE
 //  UID management • Intake-tab creator • Waiting-List & Telephone-Log sync
-//  Multi-directional Patient Name & Email sync
-//  editHandler trigger + one-time Google-Form e-mail
 // =================================================================
 
 /* ---------- GLOBAL CONFIG -------------------------------------- */
 const SS = SpreadsheetApp.getActive();
 
 const CONFIG = {
-  // ---- Sheet names
-  TELEPHONE_LOG:  'Telephone_Log_2025',
-  WAITING_LIST:   'Waiting_List_2025',
+  // ---- Sheet names (GENERIC - NO YEARS)
+  TELEPHONE_LOG:  'Telephone_Log',
+  WAITING_LIST:   'Waiting_List',
   REGISTRY:       'Patient_Registry',
   TEMPLATE:       'Intake_Template',
-  HISTORY:        'Email_History_2025',
+  HISTORY:        'Email_History',
   FORM_RESPONSES: 'Form Responses',
 
-  // ---- Google Form
+  // ---- Google Form (You must update this URL when you generate a new year's system)
   FORM_URL: 'https://docs.google.com/forms/d/e/1FAIpQLScfdkxGN5ZAGittteFpYRn1y2_nCvi0fgxgEZfMCsyHlKl5bw/viewform?usp=pp_url',
 
   // ---- Patient Registry column indexes (1-based)
@@ -186,8 +184,9 @@ function sheet_(name) {
     const s = SS.getSheetByName(name);
     if (!s) {
         Logger.log(`sheet_(): Sheet "${name}" not found!`);
-        SpreadsheetApp.getUi().alert(`Error: Critical sheet "${name}" not found. Please check configuration.`);
-        throw new Error(`Sheet not found: ${name}`);
+        // We do not alert here to allow the Migration Script to run without UI errors
+        console.warn(`Sheet not found: ${name}`); 
+        return null;
     }
     _CACHE[name] = s;
   }
@@ -199,6 +198,7 @@ function sheet_(name) {
  * ================================================================ */
 function markHasIntake_(uid, value = true) {
   const reg = sheet_(CONFIG.REGISTRY);
+  if (!reg) return;
   const uidCol = reg.getRange(1, CONFIG.REG_COL_UID, reg.getLastRow(), 1).getValues().flat();
   const idx = uidCol.indexOf(uid);
   if (idx === -1) return; // not found (shouldn't happen if we call ensureRegistryEntry_ earlier)
@@ -211,6 +211,7 @@ function getOrCreateUID_(patient, responsible, email) {
 
   // ---------- 1) look-up logic (try to reuse an old UID) ----------
   const reg = sheet_(CONFIG.REGISTRY);
+  if (!reg) return newUid_({patient, email}); // Fallback if registry missing
   const rows = reg.getDataRange().getValues();
 
   // Fast path – valid e-mail was supplied
@@ -241,6 +242,7 @@ function getOrCreateUID_(patient, responsible, email) {
  * ---------------------------------------------------------------- */
 function ensureRegistryEntry_(uid, patient, email) {
   const reg = sheet_(CONFIG.REGISTRY);
+  if (!reg) return;
   const uidCol = reg.getRange(1, CONFIG.REG_COL_UID,
                               reg.getLastRow(), 1).getValues().flat();
   let idx = uidCol.indexOf(uid);
@@ -270,7 +272,7 @@ function ensureRegistryEntry_(uid, patient, email) {
 
 /* ----------------------------------------------------------------
  * 1c.  UID factory – always returns a fresh UID that is already
- *      present in Patient Registry.
+ * present in Patient Registry.
  * ---------------------------------------------------------------- */
 function newUid_({ patient = '', email = '' } = {}) {
   const uid = Utilities.getUuid();
@@ -287,7 +289,32 @@ function onOpen() {
     .addItem('✙🧍‍♂️ New Intake Tab', 'openIntakeCreator')
     .addSeparator()
     .addItem('✙📒 New Telephone Log Entry', 'addNewTelephoneLogEntry')
+    .addSeparator()
+    .addItem('⚙️ Install Triggers (One Time)', 'installTrigger') // NEW for 2026
     .addToUi();
+}
+
+/**
+ * NEW UTILITY: Run this once when creating a new sheet for the new year.
+ * It restores the automation that detects Form Submissions.
+ */
+function installTrigger() {
+  const ui = SpreadsheetApp.getUi();
+  const triggers = ScriptApp.getProjectTriggers();
+  
+  // Check if already exists to prevent duplicates
+  const exists = triggers.some(t => t.getHandlerFunction() === 'onFormSubmitTrigger');
+  if (exists) {
+    ui.alert("Trigger is already installed.");
+    return;
+  }
+
+  ScriptApp.newTrigger('onFormSubmitTrigger')
+    .forSpreadsheet(SpreadsheetApp.getActive())
+    .onFormSubmit()
+    .create();
+  
+  ui.alert("Success! The 'On Form Submit' automation has been installed.");
 }
 
 function createPatientIntakeTab() {
@@ -385,14 +412,15 @@ function openIntakeCreator() {
  * ================================================================ */
 function getRecentTLWithoutIntake_(limit = 25, scanWindow = 400) {
   const tl = sheet_(CONFIG.TELEPHONE_LOG);
+  if (!tl) return [];
   const lastRow = tl.getLastRow();
   if (lastRow <= CONFIG.TL_HEADER_ROWS) return [];
 
   // Build a set of UIDs that already have intake
   const reg = sheet_(CONFIG.REGISTRY);
-  const regLast = reg.getLastRow();
+  const regLast = reg ? reg.getLastRow() : 0;
   const hasIntake = new Set();
-  if (regLast > 1) {
+  if (reg && regLast > 1) {
     const uidCol = reg.getRange(2, CONFIG.REG_COL_UID, regLast - 1, 1).getValues().flat();
     const flagCol = reg.getRange(2, CONFIG.REG_COL_HAS_INTAKE, regLast - 1, 1).getValues().flat();
     for (let i = 0; i < uidCol.length; i++) if (flagCol[i] === true) hasIntake.add(uidCol[i]);
@@ -517,7 +545,7 @@ function addNewTelephoneLogEntry() {
   const numCols = Math.max(tlSheet.getMaxColumns(), CONFIG.TL_COL_ONSCHEDULE); // Ensure enough columns for all defined ones
   const newRowData = new Array(numCols).fill(''); // Create an array of empty strings
 
-  /*  📌  Column defaults  */
+  /* 📌  Column defaults  */
   newRowData[CONFIG.TL_COL_UID - 1]           = newUid_();
   newRowData[CONFIG.TL_COL_CALL_OUTCOME  - 1] = CONFIG.DEFAULT_TL_CALL_OUTCOME_PLACEHOLDER;   //  Col B
   newRowData[CONFIG.TL_COL_RESPONSIBLE   - 1] = CONFIG.DEFAULT_TL_DISABLE_FORM_NOTE; //  Col E
@@ -579,13 +607,6 @@ function addNewTelephoneLogEntry() {
  * The form now has a UID column inserted at **C**,
  * so every answer column from C onward has shifted one-to-the-right.
  */
-/**
- * Find the most-recent form-response row for a given UID
- * and return its headers & answers.
- *
- * The form now has a UID column inserted at **C**,
- * so every answer column from C onward has shifted one-to-the-right.
- */
 function getFormResponseForUid_(uid) {
   const fs = sheet_(CONFIG.FORM_RESPONSES);
   if (!fs) {
@@ -640,7 +661,7 @@ function getFormResponseForUid_(uid) {
  *
  * @param {GoogleAppsScript.Spreadsheet.Sheet} sheet  – the Intake sheet
  * @param {Object} qa                                 – response wrapper
- *        └── qa.answers  : array of raw answers in column order
+ * └── qa.answers  : array of raw answers in column order
  */
 function pasteFormAnswersToIntakeStructured_(sheet, qa) {
 
@@ -1587,8 +1608,8 @@ function syncSpotFound_(uid, newVal, source) {
 
 /**
  * Keep Not-Interested
- *   (WL Col O  ⇆  TL Col P  ⇆  Intake D5)
- *   When TRUE it also clears the “active/on-schedule” & “spot-found” flags everywhere.
+ * (WL Col O  ⇆  TL Col P  ⇆  Intake D5)
+ * When TRUE it also clears the “active/on-schedule” & “spot-found” flags everywhere.
  */
 function syncNotInterested_(uid, newVal, source) {
   /* ---- WAITING LIST ---- */
@@ -1691,4 +1712,3 @@ function placeAfterSystemSheets_(sh) {
   ss.setActiveSheet(sh);            // make the new tab active
   ss.moveActiveSheet(lastSysIdx + 1);   // 1-based index → immediately after the system tabs
 }
-
