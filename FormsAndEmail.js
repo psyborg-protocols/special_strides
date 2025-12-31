@@ -47,11 +47,11 @@ function pasteFormAnswersToIntakeStructured_(sheet, qa) {
 }
 
 function sendForm_(formKey, { uid, email, patient = '', responsible = '', apptDate = '' }) {
-  // Use the new helper to get merged config (Code logic + Sheet URL)
-  const cfg = getFormConfig_(formKey); 
-  
+  // 1. Get merged configuration (Code logic + Sheet URL)
+  const cfg = getFormConfig_(formKey);
   if (!cfg) { 
-    SpreadsheetApp.getUi().alert(`Configuration Error: Could not load form details for "${formKey}". Check the System_Form_Links sheet.`);
+    Logger.log(`sendForm_: Configuration not found for "${formKey}"`); 
+    SpreadsheetApp.getUi().alert(`Error: Form configuration for "${formKey}" is missing. Check the System_Form_Links sheet.`);
     return false; 
   }
 
@@ -66,7 +66,16 @@ function sendForm_(formKey, { uid, email, patient = '', responsible = '', apptDa
     return false; // Already sent
   }
 
-  const link = `${cfg.formUrl}&${cfg.uidEntry}=${encodeURIComponent(uid)}`;
+  // 2. SMART URL CONSTRUCTION
+  let link = cfg.formUrl;
+  
+  // Only append UID if a specific parameter name (e.g., 'entry.1234') is provided
+  if (cfg.uidEntry) {
+    // Check if the URL already has a '?' to decide between '?' and '&'
+    const separator = link.includes('?') ? '&' : '?';
+    link = `${link}${separator}${cfg.uidEntry}=${encodeURIComponent(uid)}`;
+  }
+
   const html = cfg.mail.body({link, patient, responsible, apptDate});
   MailApp.sendEmail({to: email, subject: cfg.mail.subject, htmlBody: html});
 
