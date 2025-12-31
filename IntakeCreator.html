@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+
+    <!--  Materialize CSS / Icons  -->
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+    <style>
+      body  { padding: 24px 32px 36px 32px; font-size: 0.94rem; }
+      header{ margin-bottom: 22px; }
+
+      /* reserve space so button never overlaps */
+      .select-wrapper { display:block; margin-bottom: 30px; }
+
+      /* compact menu text so 25 rows fit without a scroll-bar */
+      ul.dropdown-content li > span {
+        font-size: 0.88rem; line-height: 1.3rem;
+      }
+    </style>
+  </head>
+
+  <body>
+    <header>
+      <h5 style="margin:0">Attach or Create Intake</h5>
+      <span class="grey-text text-darken-1">
+        Pick a recent Telephone-Log call<br>or start a new intake tab.
+      </span>
+    </header>
+
+    <!-- loading spinner -->
+    <div id="loader" class="center-align" style="margin:40px 0">
+      <div class="preloader-wrapper active">
+        <div class="spinner-layer spinner-blue-only">
+          <div class="circle-clipper left"><div class="circle"></div></div>
+          <div class="gap-patch"><div class="circle"></div></div>
+          <div class="circle-clipper right"><div class="circle"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!--  Dropdown (Materialize select)  -->
+    <div class="input-field" id="formBlock" style="display:none;">
+      <select id="callSel">
+        <option disabled selected>Loading…</option>
+      </select>
+      <label>Recent calls without an intake</label>
+    </div>
+
+    <!-- Action buttons -->
+    <div id="goBlock" class="row" style="margin: 0;">
+      <div class="col s6 left-align">
+        <button id="newBtn" class="btn grey lighten-3 black-text waves-effect">
+          <i class="material-icons left">add</i>
+          Create New
+        </button>
+      </div>
+      <div class="col s6 right-align">
+        <button id="goBtn" class="btn waves-effect waves-light" disabled>
+          Create from Listing
+          <i class="material-icons right">arrow_forward</i>
+        </button>
+      </div>
+    </div>
+    
+    <!-- overlay while sheet is created -->
+    <div id="createOverlay" style="
+          position:fixed;top:0;left:0;width:100%;height:100%;
+          background:rgba(255,255,255,.8);z-index:1000;display:none;">
+      <div class="center-align" style="margin-top:120px">
+        <div class="preloader-wrapper big active">
+          <div class="spinner-layer spinner-blue-only">
+            <div class="circle-clipper left"><div class="circle"></div></div>
+            <div class="gap-patch"><div class="circle"></div></div>
+            <div class="circle-clipper right"><div class="circle"></div></div>
+          </div>
+        </div>
+        <p style="margin-top:24px">Creating intake tab…</p>
+      </div>
+    </div>
+
+    <!--  Materialize JS & behaviour  -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+    <script>
+      function showForm() {
+        document.getElementById('loader').style.display = 'none';
+        document.getElementById('formBlock').style.display = '';
+        document.getElementById('goBlock').style.display = '';
+      }
+      
+      var sel, goBtn, mSelect;
+
+      /* -------- initialise -------- */
+      document.addEventListener('DOMContentLoaded', function () {
+        sel   = document.getElementById('callSel');
+        goBtn = document.getElementById('goBtn');
+
+        google.script.run
+          .withSuccessHandler(function(list) {
+            populate(list);
+            goBtn.disabled = false;
+            showForm();
+          })
+          .withFailureHandler(function(e) {
+            console.error('Error fetching TL rows:', e);
+            populate([]);
+            showForm();
+          })
+          .listOpenTLRows();                 // <-- public wrapper in .gs file
+
+
+              /*  bottom-right “Create from Listing”  */
+        goBtn.addEventListener('click', function () {
+          var uid = sel.value;
+          if (!uid) return;
+          showCreatingSpinner(true);
+          google.script.run
+            .withSuccessHandler(function () {google.script.host.close();})
+            .withFailureHandler(function () { showCreatingSpinner(false); })
+            .createIntakeFromDialog(uid);
+        });
+        });
+        
+        /* -------- build the list -------- */
+        function populate(list) {
+          sel.innerHTML = '';                   // wipe “Loading…”
+          list.forEach(function (item) { addOption(item.uid, item.label); });
+
+          mSelect = M.FormSelect.init(sel);     // Materialize-ify
+        }
+
+        /* helper */
+        function addOption(val, txt) {
+          var o = document.createElement('option');
+          o.value = val; o.textContent = txt;
+          sel.appendChild(o);
+        }
+
+        /* -------- final action -------- */
+        function showCreatingSpinner(display=true){
+          document.getElementById('createOverlay').style.display = display?'':'none';
+          if (display) {                         // hide everything underneath
+            document.getElementById('loader').style.display     = 'none';
+            document.getElementById('formBlock').style.display  = 'none';
+            document.getElementById('goBlock').style.display    = 'none';
+          }
+        }
+
+        /*  bottom-left “Create New”  */
+        document.getElementById('newBtn').addEventListener('click', function () {
+          showCreatingSpinner(true);
+          google.script.run
+            .withSuccessHandler(function () {google.script.host.close();})
+            .withFailureHandler(function () { showCreatingSpinner(false); })
+            .createIntakeFromDialog('NEW');
+        });
+
+    </script>
+  </body>
+</html>
