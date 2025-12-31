@@ -8,6 +8,11 @@ function onOpen() {
     .addItem('✙🧍‍♂️ New Intake Tab', 'openIntakeCreator')
     .addSeparator()
     .addItem('✙📒 New Telephone Log Entry', 'addNewTelephoneLogEntry')
+    .addSeparator()
+    .addSubMenu(SpreadsheetApp.getUi().createMenu('⚙️ Admin / System')
+        .addItem('📅 Create New Year Workbook', 'openRolloverDialog')
+        .addItem('⚡ Initialize New Year Triggers', 'initializeNewYearTriggers') // Run this in the new file
+    )
     .addToUi();
 }
 

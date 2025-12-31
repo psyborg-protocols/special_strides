@@ -1,13 +1,19 @@
 /* ---------- GLOBAL CONFIG -------------------------------------- */
 const SS = SpreadsheetApp.getActive();
 
+// DYNAMIC YEAR: Extract '20xx' from the File Name. If not found, use current year.
+const MATCH_YEAR = SS.getName().match(/20\d{2}/);
+const DYNAMIC_YEAR = MATCH_YEAR ? MATCH_YEAR[0] : new Date().getFullYear().toString();
+
 const CONFIG = {
-  // ---- Sheet names
-  TELEPHONE_LOG:  'Telephone_Log_2025',
-  WAITING_LIST:   'Waiting_List_2025',
+  // ---- Sheet names (Now Dynamic)
+  TELEPHONE_LOG:  `Telephone_Log_${DYNAMIC_YEAR}`,
+  WAITING_LIST:   `Waiting_List_${DYNAMIC_YEAR}`,
+  HISTORY:        `Email_History_${DYNAMIC_YEAR}`,
+  
+  // ---- Static Sheet names
   REGISTRY:       'Patient_Registry',
   TEMPLATE:       'Intake_Template',
-  HISTORY:        'Email_History_2025',
   FORM_RESPONSES: 'Form Responses',
   FORM_LINKS:     'System_Form_Links',
 
@@ -160,5 +166,7 @@ const SYSTEM_SHEET_NAMES = [
   CONFIG.WAITING_LIST,
   CONFIG.REGISTRY,
   CONFIG.TEMPLATE,
-  CONFIG.HISTORY
+  CONFIG.HISTORY,
+  CONFIG.FORM_RESPONSES,
+  CONFIG.FORM_LINKS
 ];
