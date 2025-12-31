@@ -9,9 +9,13 @@ const CONFIG = {
   TEMPLATE:       'Intake_Template',
   HISTORY:        'Email_History_2025',
   FORM_RESPONSES: 'Form Responses',
+  FORM_LINKS:     'System_Form_Links',
 
-  // ---- Google Form
-  FORM_URL: 'https://docs.google.com/forms/d/e/1FAIpQLScfdkxGN5ZAGittteFpYRn1y2_nCvi0fgxgEZfMCsyHlKl5bw/viewform?usp=pp_url',
+  // ---- Form-Links sheet column indexes (1-based)
+  LINKS_COL_KEY:       1,
+  LINKS_COL_URL:       2,
+  LINKS_COL_UID_PARAM: 3,
+  LINKS_COL_NAME:      4,
 
   // ---- Patient Registry column indexes (1-based)
   REG_COL_UID:                1, // Column A

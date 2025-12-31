@@ -13,7 +13,7 @@ function onOpen() {
 
 function onFormSubmitTrigger(e) {
   const sheetName = e.range.getSheet().getName();
-  const formKey = Object.keys(FORMS).find(k => FORMS[k].responseSheet === sheetName);
+  const formKey = Object.keys(FORM_DEFINITIONS).find(k => FORM_DEFINITIONS[k].responseSheet === sheetName);
   if (!formKey) return;
 
   const header  = e.range.getSheet().getRange(1,1,1,e.range.getLastColumn()).getValues()[0];

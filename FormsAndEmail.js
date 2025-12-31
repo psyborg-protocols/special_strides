@@ -47,8 +47,13 @@ function pasteFormAnswersToIntakeStructured_(sheet, qa) {
 }
 
 function sendForm_(formKey, { uid, email, patient = '', responsible = '', apptDate = '' }) {
-  const cfg = FORMS[formKey];
-  if (!cfg) { Logger.log(`sendForm_: Unknown formKey "${formKey}"`); return false; }
+  // Use the new helper to get merged config (Code logic + Sheet URL)
+  const cfg = getFormConfig_(formKey); 
+  
+  if (!cfg) { 
+    SpreadsheetApp.getUi().alert(`Configuration Error: Could not load form details for "${formKey}". Check the System_Form_Links sheet.`);
+    return false; 
+  }
 
   const displayName = cfg.displayName || formKey;
   const confirm = confirmSend_(displayName, responsible || patient || email);

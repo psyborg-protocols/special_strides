@@ -1,10 +1,9 @@
 /* ================================================================
- *  FORMS – central catalogue for every automatic e-mail we send
- *          Add / edit objects only here – everything else is generic
+ * FORMS – Central Catalogue & Configuration
  * ================================================================ */
 
 /* ─────────────────────────────
- *  Re-usable HTML e-mail signature
+ * Re-usable HTML e-mail signature
  * ───────────────────────────── */
 const EMAIL_SIGNATURE_HTML = `
   <br><br><span style="color:#808080">
@@ -17,18 +16,15 @@ const EMAIL_SIGNATURE_HTML = `
   </span>`;
 
 /* ─────────────────────────────
- *  Form catalogue
+ * 1. STATIC DEFINITIONS (Logic & Text)
+ * URLs are now loaded dynamically from 'System_Form_Links'
  * ───────────────────────────── */
-const FORMS = {
+const FORM_DEFINITIONS = {
 
-  /* =============================================================
-   *  A)  Online Intake Form  (Google Form)
-   * =========================================================== */
+  /* A) Online Intake Form */
   INTAKE: {
-    displayName: 'Google Intake Form',
-    formUrl : 'https://docs.google.com/forms/d/e/1FAIpQLScfdkxGN5ZAGittteFpYRn1y2_nCvi0fgxgEZfMCsyHlKl5bw/viewform?usp=pp_url',
-    uidEntry: 'entry.526811714',          // UID pre-fill parameter
-    responseSheet: 'Form Responses',      // edit if your tab name differs
+    defaultName: 'Google Intake Form',
+    responseSheet: 'Form Responses',
     mail: {
       subject: 'Special Strides – Online Intake Form',
       body: ({link, responsible = ''}) => `
@@ -40,15 +36,10 @@ const FORMS = {
     }
   },
 
-  /* =============================================================
-   *  B)  Therapy Paperwork Pack  (Handbook + Forms)
-   *     – PDF / shared-drive link, not a Google Form
-   * =========================================================== */
+  /* B) Therapy Paperwork Pack */
   THERAPY_START: {
-    displayName: 'Therapy Paperwork Pack',
-    formUrl : 'https://specialstrides-my.sharepoint.com/:b:/g/personal/srehr_specialstrides_onmicrosoft_com/EQkzCPxTLXFErNeQOm9i1NoBemQObnTqQTwUO7-vNPj9Lg?e=cRjsVb',  // ↺ link to the pack
-    uidEntry: null,                          // no UID injection
-    responseSheet: null,                     // no on-submit tracking
+    defaultName: 'Therapy Paperwork Pack',
+    responseSheet: null,
     mail: {
       subject: 'Please complete these forms for Therapy',
       body: ({responsible = '', link}) => `
@@ -60,14 +51,11 @@ const FORMS = {
         <p>Warm regards,<br>The Special Strides Team</p>${EMAIL_SIGNATURE_HTML}`
     }
   },
-    /* =============================================================
-    *  C)  Recreational Paperwork Pack
-    * =========================================================== */
-    RECREATIONAL_START: {
-    displayName: 'Recreational Paperwork Pack',
-    formUrl : 'https://specialstrides-my.sharepoint.com/:b:/g/personal/srehr_specialstrides_onmicrosoft_com/ERsF08isSf5Pj7yo7q9z9pkBUOpd0kUx6rY8svqPg74T0Q?e=UZIWnb',
-    uidEntry: null,                        // no UID injection
-    responseSheet: null,                   // no on-submit tracking
+
+  /* C) Recreational Paperwork Pack */
+  RECREATIONAL_START: {
+    defaultName: 'Recreational Paperwork Pack',
+    responseSheet: null,
     mail: {
         subject: 'Please complete these forms for Recreational Riding',
         body: ({responsible = '', link}) => `
@@ -78,48 +66,87 @@ const FORMS = {
         <p><a href="${link}" target="_blank">New Client Handbook</a></p>
         <p>Warm regards,<br>The Special Strides Team</p>${EMAIL_SIGNATURE_HTML}`
     }
-    },
-  /* =============================================================
-   *  D)  Annual Financial-Aid Application (Google Form)
-   * =========================================================== */
+  },
+
+  /* D) Annual Financial-Aid Application */
   FINANCIAL_AID_2025: {
-    displayName: '2025 Financial Aid Application',
-    formUrl : 'https://forms.gle/yBEbWNKjiHuELKDp8',
-    uidEntry: null,
+    defaultName: 'Financial Aid Application',
     responseSheet: 'FA 2025',
     mail: {
-      subject: '2025 Financial Aid Application Link',
-      body: ({responsible = ''}) => `
+      subject: 'Financial Aid Application Link',
+      body: ({responsible = '', link}) => `
         <p>Dear ${responsible || 'Family'},</p>
         <p>It was a pleasure meeting with you today. Please complete the
-        2025 Financial Aid Application using the link below.</p>
-        <p><a href="https://forms.gle/yBEbWNKjiHuELKDp8" target="_blank">
-        2025 Financial Aid Application</a></p>
+        Financial Aid Application using the link below.</p>
+        <p><a href="${link}" target="_blank">Financial Aid Application</a></p>
         <p>If you have any questions please contact me at any time at
         732-446-0945.</p>${EMAIL_SIGNATURE_HTML}`
     }
   },
 
-  /* =============================================================
-   *  E)  Tele-health Appointment (static doxy.me room link)
-   * =========================================================== */
+  /* E) Tele-health Appointment */
   TELEHEALTH_APPT: {
-    displayName: 'Tele-health Appointment',
-    formUrl : 'https://specialstrides.doxy.me/srehr',  // static room link
-    uidEntry: null,
-    responseSheet: null,          // no submission tracking
+    defaultName: 'Tele-health Appointment',
+    responseSheet: null,
     mail: {
       subject: 'Tele-health visit appointment link',
-      body: ({responsible = '', apptDate = ''}) => `
+      body: ({responsible = '', apptDate = '', link}) => `
         <p>Dear ${responsible || 'Client'},</p>
         <p>It was a pleasure to speak with you today. Please use this link
         for our tele-health visit scheduled on <strong>${apptDate}</strong>.</p>
-        <p><a href="https://specialstrides.doxy.me/srehr" target="_blank">
-        https://specialstrides.doxy.me/srehr</a></p>
+        <p><a href="${link}" target="_blank">${link}</a></p>
         <p>I look forward to speaking with you.</p>
         <p>Warm regards,<br>The Special Strides Team</p>${EMAIL_SIGNATURE_HTML}`
     }
   }
-
-  /* ── Add more forms here in the same pattern ── */
 };
+
+/* ─────────────────────────────
+ * 2. DYNAMIC LOADER
+ * ───────────────────────────── */
+function getFormConfig_(key) {
+  // 1. Get the static code definition (email body, etc.)
+  const staticDef = FORM_DEFINITIONS[key];
+  if (!staticDef) {
+    Logger.log(`Error: Form key "${key}" not found in code definitions.`);
+    return null;
+  }
+
+  // 2. Fetch live URLs from the hidden System sheet
+  const linkData = getFormLinkDataFromSheet_(key);
+
+  if (!linkData || !linkData.url) {
+    Logger.log(`Error: URL for "${key}" not found in sheet "${CONFIG.FORM_LINKS}".`);
+    // Fallback: If you haven't filled the sheet yet, this will fail safely.
+    return null;
+  }
+
+  // 3. Merge them
+  return {
+    ...staticDef,
+    formUrl: linkData.url,
+    uidEntry: linkData.uidParam || null, // Overwrite if present in sheet
+    displayName: linkData.name || staticDef.defaultName
+  };
+}
+
+function getFormLinkDataFromSheet_(key) {
+  const sheet = sheet_(CONFIG.FORM_LINKS);
+  if (!sheet) return null;
+
+  // Cache strategy: Read all links once to save time?
+  // For simplicity and low volume, we can just find the row.
+  const data = sheet.getDataRange().getValues();
+  
+  // Skip header (row 0)
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][CONFIG.LINKS_COL_KEY - 1] === key) {
+      return {
+        url:      data[i][CONFIG.LINKS_COL_URL - 1],
+        uidParam: data[i][CONFIG.LINKS_COL_UID_PARAM - 1],
+        name:     data[i][CONFIG.LINKS_COL_NAME - 1]
+      };
+    }
+  }
+  return null;
+}
