@@ -8,9 +8,30 @@
       body { padding: 20px; font-family: sans-serif; text-align: center; }
       .input-field { margin-top: 25px; text-align: left; }
       .spinner-layer { border-color: #2196F3; }
-      #loading, #success { display: none; margin-top: 40px; }
-      h5 { margin-bottom: 30px; }
+      #loading, #success { display: none; margin-top: 20px; }
+      h5 { margin-bottom: 20px; }
       p { color: #666; }
+      
+      /* Instructions styling */
+      .instructions {
+        background-color: #e3f2fd;
+        padding: 15px;
+        border-radius: 4px;
+        text-align: left;
+        margin: 20px 0;
+        font-size: 0.9rem;
+      }
+      .instructions ol { margin-bottom: 0; padding-left: 20px; }
+      .instructions li { margin-bottom: 8px; color: #333; }
+
+      /* Helper text for inputs */
+      .helper-text {
+        font-size: 0.8rem;
+        color: #757575;
+        margin-top: 5px;
+        display: block;
+        line-height: 1.2;
+      }
     </style>
   </head>
   <body>
@@ -20,13 +41,19 @@
       <p>This will create a copy, clear history, and rollover system sheets.</p>
       
       <div class="input-field">
-        <input id="year" type="number" value="2026">
+        <input id="year" type="number">
         <label for="year" class="active">Target Year</label>
       </div>
 
       <div class="input-field">
-        <input id="finLink" type="text" placeholder="https://...">
+        <input id="finLink" type="text" placeholder="https://docs.google.com/forms/...">
         <label for="finLink" class="active">Financial Aid URL (Optional)</label>
+        
+        <span class="helper-text">
+          <i class="tiny material-icons" style="vertical-align: text-bottom;">info_outline</i>
+          Don't have the link yet? <strong>Leave this blank.</strong><br>
+          You can add it later in the 'System_Form_Links' tab.
+        </span>
       </div>
 
       <br>
@@ -50,7 +77,16 @@
     <div id="success">
       <i class="material-icons large green-text">check_circle</i>
       <h5>Success!</h5>
-      <p>The new workbook has been created.</p>
+      
+      <div class="instructions">
+        <strong>Next Steps:</strong>
+        <ol>
+          <li>Click the button below to open the new file.</li>
+          <li>In the new file, go to <b>Intake Tools > Admin / System</b>.</li>
+          <li>Click <b>⚡ Initialize New Year Triggers</b> to activate automation.</li>
+        </ol>
+      </div>
+
       <a id="newLink" href="#" target="_blank" class="btn green waves-effect waves-light">
         Open New Workbook
       </a>
@@ -60,6 +96,26 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
     <script>
+      /* --- 1. DYNAMIC YEAR CALCULATION --- */
+      document.addEventListener('DOMContentLoaded', function() {
+        const d = new Date();
+        const month = d.getMonth(); // 0 = Jan, 9 = Oct, 11 = Dec
+        let suggestYear = d.getFullYear();
+
+        // If it is Oct, Nov, or Dec, suggest NEXT year.
+        // Otherwise (Jan-Sept), suggest CURRENT year.
+        if (month >= 9) {
+          suggestYear += 1;
+        }
+
+        const yearInput = document.getElementById('year');
+        yearInput.value = suggestYear;
+        
+        // Tell Materialize to update labels (prevent overlap)
+        M.updateTextFields();
+      });
+
+      /* --- 2. BUTTON ACTIONS --- */
       document.getElementById('btnCreate').addEventListener('click', function(){
         const year = document.getElementById('year').value;
         const url  = document.getElementById('finLink').value;
