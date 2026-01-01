@@ -2,8 +2,6 @@
  * NEW YEAR ROLLOVER LOGIC
  * ================================================================ */
 
-const TEMPLATE_FOLDER_ID = '1lhgmsFF9FRdARoWs8y7tQjvDtS-bB1mq'
-
 /* 1. ROLLOVER (CREATE NEW WORKBOOK) -------------------------- */
 
 function openRolloverDialog() {
@@ -13,52 +11,43 @@ function openRolloverDialog() {
   SpreadsheetApp.getUi().showModalDialog(html, 'Create New Year Workbook');
 }
 
+const TEMPLATE_SS_ID = '11EfX1ZAlpcUM_JgKaaSXJ1C4SF7KT3rphbP6JrbFxl8';
+const TEMPLATE_FORM_ID = '1SUz8-4a33F01t-N1Sq71XHIqugUsaKIBwYgRu_ovp1k';
 
 function processRollover(targetYear, finAidUrl) {
   try {
-    // 1. COPY THE ENTIRE FOLDER
-    // This performs the "magic" copy that preserves the Form<->Sheet link
-    // and keeps the "Form Responses" tab intact (no "Form Responses 2").
-    const templateFolder = DriveApp.getFolderById(TEMPLATE_FOLDER_ID);
-    const newFolder = templateFolder.makeCopy(`Special Strides ${targetYear}`);
-    
-    // 2. LOCATE THE NEW FILES
-    // We iterate through the new folder to find our new Sheet and Form
-    let newSS = null;
-    let newForm = null;
-    
-    const files = newFolder.getFiles();
-    while (files.hasNext()) {
-      const file = files.next();
-      const mime = file.getMimeType();
-      
-      if (mime === MimeType.GOOGLE_SHEETS) {
-        newSS = SpreadsheetApp.openById(file.getId());
-        file.setName(`${targetYear} Intake Communication Log`); // Rename file
-      } 
-      else if (mime === MimeType.GOOGLE_FORMS) {
-        newForm = FormApp.openById(file.getId());
-        file.setName(`New Client/Participant Intake ${targetYear}`); // Rename file
-      }
-    }
+    // 1. CREATE THE NEW FOLDER
+    // We create a container folder so 2026 files stay organized
+    const newFolder = DriveApp.createFolder(`Special Strides ${targetYear}`);
 
-    if (!newSS || !newForm) throw new Error("Could not find Sheet or Form in template folder.");
+    // 2. COPY THE TEMPLATE FILES INTO THE NEW FOLDER
+    const templateSSFile = DriveApp.getFileById(TEMPLATE_SS_ID);
+    const templateFormFile = DriveApp.getFileById(TEMPLATE_FORM_ID);
 
-    // 3. UPDATE SETTINGS 
-    // The link already exists! We just need to update the text.
-    const newFormUrl = newForm.getEditUrl(); // Store Edit URL for safety
+    const newSSFile = templateSSFile.makeCopy(`Special Strides Workbook ${targetYear}`, newFolder);
+    const newFormFile = templateFormFile.makeCopy(`${targetYear} Intake Form`, newFolder);
+
+    // 3. OPEN THE NEW FILES
+    const newSS = SpreadsheetApp.openById(newSSFile.getId());
+    const newForm = FormApp.openById(newFormFile.getId());
+
+    // 4. LINK THEM
+    // Since we copied files individually, they are NOT linked yet.
+    // We must link them, which will create the "Form Responses" tab mess.
+
+    newForm.setDestination(FormApp.DestinationType.SPREADSHEET, newSS.getId());
+
+    // 5. UPDATE SETTINGS
+    const newFormUrl = newForm.getEditUrl(); 
     newForm.setConfirmationMessage(`Thank you. Your ${targetYear} intake has been received.`);
     
-    setupNewYearTabs_(newSS, targetYear);
-
-    // 4. UPDATE INTERNAL LINKS
-    // Update the System_Form_Links tab so the new workbook knows its own form
+    // 6. UPDATE INTERNAL LINKS
     updateSystemLinks_(newSS, targetYear, newFormUrl, finAidUrl);
 
     return {
       success: true,
       newUrl: newSS.getUrl(),
-      newName: newSS.getName()
+      newName: newSSFile.getName()
     };
 
   } catch (e) {
