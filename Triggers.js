@@ -79,8 +79,8 @@ function editHandler(e) {
          const email = sh.getRange(CONFIG.INTAKE_CELL_EMAIL).getValue();
          
          if (validateEmail(email)) {
-            // NOTE: Ensure 'FINANCIAL_AID_2025' matches the key in forms_catalogue.js. Update to 2026 if needed!
-            if(sendForm_('FINANCIAL_AID_2025', { uid, email, responsible: sh.getRange(CONFIG.INTAKE_CELL_RESPONSIBLE_PARTY).getValue() })) {
+            // UPDATED: Now uses generic 'FINANCIAL_AID' key (No year)
+            if(sendForm_('FINANCIAL_AID', { uid, email, responsible: sh.getRange(CONFIG.INTAKE_CELL_RESPONSIBLE_PARTY).getValue() })) {
                sh.getRange(CONFIG.INTAKE_TAB_FINANCIAL_AID_NOTE).setValue('Form Sent!');
             }
          } else { 

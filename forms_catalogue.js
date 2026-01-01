@@ -69,9 +69,10 @@ const FORM_DEFINITIONS = {
   },
 
   /* D) Annual Financial-Aid Application */
-  FINANCIAL_AID_2025: {
+  /* UPDATED: Renamed Key to generic 'FINANCIAL_AID' */
+  FINANCIAL_AID: {
     defaultName: 'Financial Aid Application',
-    responseSheet: 'FA 2025',
+    responseSheet: null,
     mail: {
       subject: 'Financial Aid Application Link',
       body: ({responsible = '', link}) => `

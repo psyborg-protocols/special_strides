@@ -164,9 +164,12 @@ function updateSystemLinks_(ss, year, intakeUrl, finAidUrl) {
     if (key === 'INTAKE' && intakeUrl) {
       sheet.getRange(i + 1, 2).setValue(intakeUrl);
     }
-    if (key.includes('FINANCIAL_AID')) {
-      sheet.getRange(i + 1, 1).setValue(`FINANCIAL_AID_${year}`);
-      sheet.getRange(i + 1, 4).setValue(`Financial Aid Application`); 
+    // UPDATED: Check for generic 'FINANCIAL_AID' instead of year-specific
+    if (key === 'FINANCIAL_AID') {
+      // Don't change the key in col 1. Keep it as FINANCIAL_AID.
+      // Update Label (Col 4)
+      sheet.getRange(i + 1, 4).setValue(`Financial Aid Application ${year}`); 
+      // Update URL (Col 2)
       if (finAidUrl) sheet.getRange(i + 1, 2).setValue(finAidUrl);
       else sheet.getRange(i + 1, 2).setValue('(Update this link)');
     }
