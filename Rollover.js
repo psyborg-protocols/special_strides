@@ -16,9 +16,9 @@ function openRolloverDialog() {
     `This will create a brand new workbook for the upcoming year.\n\n` +
     `It will:\n` + 
     `1. Copy this spreadsheet\n` + 
-    `2. Delete all patient tabs\n` + 
-    `3. Clear history/logs\n` +
-    `4. Duplicate the Intake Form\n\n` +
+    `2. Clear all patient tabs in the copy\n` + 
+    `3. Clear history/logs in the copy\n` +
+    `4. Duplicate the Intake Form and attach it\n\n` +
     `Enter the Year for the new workbook:`, 
     ui.ButtonSet.OK_CANCEL
   );
@@ -139,18 +139,14 @@ function cleanUpNewSheet_(targetSS, targetYear) {
          if (sh.getLastRow() > 1) sh.deleteRows(2, sh.getLastRow() - 1);
       } 
       else if (name.includes('Telephone_Log')) {
-         if (sh.getLastRow() > CONFIG.TL_HEADER_ROWS) {
-            sh.getRange(CONFIG.TL_HEADER_ROWS + 1, 1, sh.getLastRow() - CONFIG.TL_HEADER_ROWS, sh.getLastColumn()).clearContent();
-            sh.getRange(CONFIG.TL_HEADER_ROWS + 1, 1, sh.getLastRow() - CONFIG.TL_HEADER_ROWS, sh.getLastColumn()).removeCheckboxes();
-         }
-         sh.setName(`Telephone_Log_${targetYear}`); // Rename
+        // Use a fixed column count from CONFIG so we don't depend on "last used" column
+        clearBelowHeader_(sh, CONFIG.TL_HEADER_ROWS, CONFIG.TL_COL_NOT_INTERESTED);
+        sh.setName(`Telephone_Log_${targetYear}`);
       }
+
       else if (name.includes('Waiting_List')) {
-         if (sh.getLastRow() > CONFIG.WL_HEADER_ROWS) {
-           sh.getRange(CONFIG.WL_HEADER_ROWS + 1, 1, sh.getLastRow() - CONFIG.WL_HEADER_ROWS, sh.getLastColumn()).clearContent();
-           sh.getRange(CONFIG.WL_HEADER_ROWS + 1, 1, sh.getLastRow() - CONFIG.WL_HEADER_ROWS, sh.getLastColumn()).removeCheckboxes();
-         }
-         sh.setName(`Waiting_List_${targetYear}`); // Rename
+        clearBelowHeader_(sh, CONFIG.WL_HEADER_ROWS, CONFIG.WL_INTAKE_COMPLETED);
+        sh.setName(`Waiting_List_${targetYear}`);
       }
       else if (name.includes('Email_History')) {
          if (sh.getLastRow() > 1) sh.deleteRows(2, sh.getLastRow() - 1);
@@ -162,6 +158,19 @@ function cleanUpNewSheet_(targetSS, targetYear) {
     }
   });
 }
+
+function clearBelowHeader_(sh, headerRows, maxCol) {
+  const maxRows = sh.getMaxRows();              // fixed sheet size, not dependent on content
+  const numRows = maxRows - headerRows;
+  if (numRows <= 0) return;
+
+  const cols = Math.max(1, maxCol || sh.getMaxColumns());
+  const rng = sh.getRange(headerRows + 1, 1, numRows, cols);
+
+  rng.clearContent();                            // clears values, not formatting
+  try { rng.removeCheckboxes(); } catch (e) {}   // safe even if no checkboxes exist
+}
+
 
 function fixFormDestinationTab_(ss) {
   // Linking a form creates "Form Responses X". We need it to be "Form Responses".
