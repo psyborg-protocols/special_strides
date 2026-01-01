@@ -32,7 +32,7 @@ function processRollover(targetYear, finAidUrl) {
     const newForm = FormApp.openById(newFormFile.getId());
 
     // Force the form to go live immediately
-    newForm.setAcceptingResponses(true);
+    newForm.setPublished(true);
 
     // 4. LINK THEM
     // Since we copied files individually, they are NOT linked yet.
