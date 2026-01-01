@@ -39,6 +39,14 @@ function pasteFormAnswersToIntakeStructured_(sheet, qa) {
     [CONFIG.INTAKE_CELL_BEST_CONTACT]     : join([CONFIG.FR_COL_CHILD_BEST_CONTACT, CONFIG.FR_COL_ADULT_BEST_CONTACT])
   };
 
+  // --- NEW LOGIC: Adult Detection ---
+  // If the "Child Interest" field is empty, we assume this is an adult filling it out for themselves.
+  // In that case, we overwrite the Patient Name with the Responsible Party name.
+  if (!val(CONFIG.FR_COL_INTEREST_CHILD)) {
+    MAP[CONFIG.INTAKE_CELL_PATIENT_NAME] = val(CONFIG.FR_COL_RESPONSIBLE_PARTY);
+  }
+  // ----------------------------------
+
   Object.entries(MAP).forEach(([cell, value]) => {
     if (value) sheet.getRange(cell).setValue(value);
   });
