@@ -67,7 +67,9 @@ function sendForm_(formKey, { uid, email, patient = '', responsible = '', apptDa
   }
 
   // 2. SMART URL CONSTRUCTION
-  let link = cfg.formUrl;
+  // Auto-protect: specific replacement ensures patients always get the VIEW link
+  // even though we store the EDIT link in the sheet for the rollover script.
+  let link = cfg.formUrl.replace(/\/edit.*$/, '/viewform');
   
   // Only append UID if a specific parameter name (e.g., 'entry.1234') is provided
   if (cfg.uidEntry) {

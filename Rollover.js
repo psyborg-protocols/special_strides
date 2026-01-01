@@ -63,7 +63,7 @@ function processRollover(targetYear, finAidUrl) {
         fixFormDestinationTab_(newSS); // Fix the "Form Responses 2" issue
 
         // Update settings
-        newFormUrl = newForm.getPublishedUrl();
+        newFormUrl = newForm.getEditUrl(); // Store EDIT url so next year's rollover can find the ID
         newForm.setConfirmationMessage(`Thank you. Your ${targetYear} intake has been received.`);
       } else {
         Logger.log('Warning: No INTAKE row found in System_Form_Links.');
