@@ -31,6 +31,9 @@ function processRollover(targetYear, finAidUrl) {
     const newSS = SpreadsheetApp.openById(newSSFile.getId());
     const newForm = FormApp.openById(newFormFile.getId());
 
+    // Force the form to go live immediately
+    newForm.setAcceptingResponses(true);
+
     // 4. LINK THEM
     // Since we copied files individually, they are NOT linked yet.
     // We must link them, which will create the "Form Responses" tab mess.
