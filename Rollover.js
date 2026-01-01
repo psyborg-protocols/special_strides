@@ -31,10 +31,25 @@ function processRollover(targetYear, finAidUrl) {
     // 3. Clean up the NEW sheet
     cleanUpNewSheet_(newSS, targetYear);
     
-    // 4. Handle Google Form (Intake)
+// 4. Handle Google Form (Intake) - PATCHED: Uses System_Form_Links only
     let newFormUrl = '(Form not found - manual link required)';
     try {
-      const formUrl = ss.getFormUrl(); 
+      let formUrl = null;
+
+      // A) Look up the 'INTAKE' URL in the System_Form_Links sheet
+      const linkSheet = ss.getSheetByName(CONFIG.FORM_LINKS);
+      if (linkSheet) {
+        const data = linkSheet.getDataRange().getValues();
+        // Loop rows (skipping header) to find the INTAKE key
+        for (let i = 1; i < data.length; i++) {
+          if (data[i][CONFIG.LINKS_COL_KEY - 1] === 'INTAKE') {
+            formUrl = data[i][CONFIG.LINKS_COL_URL - 1];
+            break;
+          }
+        }
+      }
+
+      // B) If URL found, process the copy
       if (formUrl) {
         const oldForm = FormApp.openByUrl(formUrl);
         const oldFormFile = DriveApp.getFileById(oldForm.getId());
@@ -43,11 +58,15 @@ function processRollover(targetYear, finAidUrl) {
         const newFormFile = oldFormFile.makeCopy(`${targetYear} Intake Form`);
         const newForm = FormApp.openById(newFormFile.getId());
         
+        // Link new form to new spreadsheet
         newForm.setDestination(FormApp.DestinationType.SPREADSHEET, newSS.getId());
-        fixFormDestinationTab_(newSS); // Fix "Form Responses 2" issue
+        fixFormDestinationTab_(newSS); // Fix the "Form Responses 2" issue
 
+        // Update settings
         newFormUrl = newForm.getPublishedUrl();
         newForm.setConfirmationMessage(`Thank you. Your ${targetYear} intake has been received.`);
+      } else {
+        Logger.log('Warning: No INTAKE row found in System_Form_Links.');
       }
     } catch (e) {
       console.error('Error handling forms: ' + e.message);
