@@ -44,6 +44,9 @@ function processRollover(targetYear, finAidUrl) {
     // 6. UPDATE INTERNAL LINKS
     updateSystemLinks_(newSS, targetYear, newFormUrl, finAidUrl);
 
+    // 7. RENAME TABS
+    setupNewYearTabs_(newSS, targetYear);
+
     return {
       success: true,
       newUrl: newSS.getUrl(),
@@ -105,7 +108,8 @@ function setupNewYearTabs_(ss, targetYear) {
   const mappings = [
     { contains: 'Telephone_Log',  prefix: 'Telephone_Log_' },
     { contains: 'Waiting_List',   prefix: 'Waiting_List_' },
-    { contains: 'Email_History',  prefix: 'Email_History_' }
+    { contains: 'Email_History',  prefix: 'Email_History_' },
+    { contains: 'Form Responses ', prefix: 'Form Responses'}
   ];
 
   sheets.forEach(sh => {
