@@ -160,15 +160,12 @@ function cleanUpNewSheet_(targetSS, targetYear) {
 }
 
 function clearBelowHeader_(sh, headerRows, maxCol) {
-  const maxRows = sh.getMaxRows();              // fixed sheet size, not dependent on content
+  const maxRows = sh.getMaxRows();
   const numRows = maxRows - headerRows;
   if (numRows <= 0) return;
 
   const cols = Math.max(1, maxCol || sh.getMaxColumns());
-  const rng = sh.getRange(headerRows + 1, 1, numRows, cols);
-
-  rng.clearContent();                            // clears values, not formatting
-  try { rng.removeCheckboxes(); } catch (e) {}   // safe even if no checkboxes exist
+  sh.getRange(headerRows + 1, 1, numRows, cols).clearContent();
 }
 
 
