@@ -110,64 +110,72 @@ function createYearlyCopy_(targetYear, finAidUrl) {
 
 function cleanUpNewSheet_(targetSS, targetYear) {
   const sheets = targetSS.getSheets();
-  const keepNames = [
-    CONFIG.REGISTRY,
-    CONFIG.TEMPLATE,
-    CONFIG.FORM_LINKS,
-    // Note: We use the DYNAMIC variable keys from current config, 
-    // but we will look for them using partial matches or standard names because
-    // the sheet names in the COPY are still 2025 until we rename them.
-    'Telephone_Log', 
-    'Waiting_List', 
+  const deleteRequests = [];
+  
+  // Define System Sheets (using dynamic year matching from current config)
+  // We use partial matching because the sheet names in the COPY are still '2025' 
+  // until we rename them below.
+  const systemKeywords = [
+    'Patient_Registry',
+    'Intake_Template',
+    'System_Form_Links',
+    'Telephone_Log',
+    'Waiting_List',
     'Email_History',
     'Form Responses'
   ];
 
-  // A. Delete Patient Tabs & Clear Data
   sheets.forEach(sh => {
     const name = sh.getName();
-    
-    // Check if it's a system sheet (partial match allows finding "Telephone_Log_2025")
-    const isSystem = keepNames.some(k => name.includes(k));
+    const isSystem = systemKeywords.some(key => name.includes(key));
 
     if (!isSystem) {
-      targetSS.deleteSheet(sh);
+      // BATCH DELETE: Collect ID, don't delete yet
+      deleteRequests.push({
+        deleteSheet: {
+          sheetId: sh.getSheetId()
+        }
+      });
     } else {
-      // It is a system sheet: Clear Content (keep headers)
+      // SYSTEM SHEET: Clean and Rename individually (fast enough for ~5 sheets)
+      
       if (name.includes('Form Responses')) {
-         // Clear all responses except header
+         // Clear data, keep headers
          if (sh.getLastRow() > 1) sh.deleteRows(2, sh.getLastRow() - 1);
       } 
       else if (name.includes('Telephone_Log')) {
-        // Use a fixed column count from CONFIG so we don't depend on "last used" column
-        clearBelowHeader_(sh, CONFIG.TL_HEADER_ROWS, CONFIG.TL_COL_NOT_INTERESTED);
-        sh.setName(`Telephone_Log_${targetYear}`);
+         if (sh.getLastRow() > CONFIG.TL_HEADER_ROWS) {
+            sh.getRange(CONFIG.TL_HEADER_ROWS + 1, 1, sh.getLastRow() - CONFIG.TL_HEADER_ROWS, sh.getLastColumn()).clearContent();         }
+         sh.setName(`Telephone_Log_${targetYear}`); 
       }
-
       else if (name.includes('Waiting_List')) {
-        clearBelowHeader_(sh, CONFIG.WL_HEADER_ROWS, CONFIG.WL_INTAKE_COMPLETED);
-        sh.setName(`Waiting_List_${targetYear}`);
+         if (sh.getLastRow() > CONFIG.WL_HEADER_ROWS) {
+           sh.getRange(CONFIG.WL_HEADER_ROWS + 1, 1, sh.getLastRow() - CONFIG.WL_HEADER_ROWS, sh.getLastColumn()).clearContent();         }
+         sh.setName(`Waiting_List_${targetYear}`);
       }
       else if (name.includes('Email_History')) {
          if (sh.getLastRow() > 1) sh.deleteRows(2, sh.getLastRow() - 1);
-         sh.setName(`Email_History_${targetYear}`); // Rename
+         sh.setName(`Email_History_${targetYear}`);
       }
-      else if (name === CONFIG.REGISTRY) {
+      else if (name.includes('Patient_Registry')) { // Use includes to be safe
          if (sh.getLastRow() > 1) sh.deleteRows(2, sh.getLastRow() - 1);
       }
     }
   });
+
+  // EXECUTE BATCH DELETION
+  if (deleteRequests.length > 0) {
+    try {
+      // This sends one single HTTP request to delete all non-system tabs
+      Sheets.Spreadsheets.batchUpdate({requests: deleteRequests}, targetSS.getId());
+      console.log(`Batch deleted ${deleteRequests.length} tabs.`);
+    } catch (e) {
+      // Fallback if Service is not enabled
+      SpreadsheetApp.getUi().alert("Error: Please enable 'Google Sheets API' in Services to use batch deletion.");
+      console.error(e);
+    }
+  }
 }
-
-function clearBelowHeader_(sh, headerRows, maxCol) {
-  const maxRows = sh.getMaxRows();
-  const numRows = maxRows - headerRows;
-  if (numRows <= 0) return;
-
-  const cols = Math.max(1, maxCol || sh.getMaxColumns());
-  sh.getRange(headerRows + 1, 1, numRows, cols).clearContent();
-}
-
 
 function fixFormDestinationTab_(ss) {
   // Linking a form creates "Form Responses X". We need it to be "Form Responses".
