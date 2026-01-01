@@ -55,7 +55,7 @@ function processRollover(targetYear, finAidUrl) {
         const oldFormFile = DriveApp.getFileById(oldForm.getId());
         
         // Copy the form
-        const newFormFile = oldFormFile.makeCopy(`${targetYear} Intake Form`);
+        const newFormFile = oldFormFile.makeCopy(`New Client/Participant Intake ${targetYear}`);
         const newForm = FormApp.openById(newFormFile.getId());
         
         // Link new form to new spreadsheet
