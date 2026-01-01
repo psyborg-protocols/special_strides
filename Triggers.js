@@ -56,27 +56,40 @@ function editHandler(e) {
       uid = uidFromTab;
       const cellA1 = range.getA1Notation().split(':')[0];
 
-      // Auto-Email Triggers
+      // --- AUTO-EMAIL TRIGGERS ---
+
+      // A) Start Therapy / Recreational Paperwork
       if (cellA1 === CONFIG.INTAKE_CELL_ACTIVE && editedValue === 'TRUE') {
          const email = sh.getRange(CONFIG.INTAKE_CELL_EMAIL).getValue();
          const isRec = sh.getRange(CONFIG.INTAKE_CELL_RECREATIONAL).getValue() === true;
+         
          if (validateEmail(email)) {
             const formKey = isRec ? 'RECREATIONAL_START' : 'THERAPY_START';
             if (sendForm_(formKey, { uid, email, responsible: sh.getRange(CONFIG.INTAKE_CELL_RESPONSIBLE_PARTY).getValue() })) {
               sh.getRange(CONFIG.INTAKE_TAB_FORMS_SENT_NOTE).setValue(isRec ? 'Recreational Forms Sent!' : 'Therapy Forms Sent!');
             }
-         } else { sh.getRange(CONFIG.INTAKE_CELL_ACTIVE).setValue(false); }
+         } else { 
+            // WARN: Missing Email
+            warnMissingEmail_(sh, CONFIG.INTAKE_CELL_ACTIVE, isRec ? 'Recreational Paperwork' : 'Therapy Paperwork');
+         }
       }
 
+      // B) Financial Aid
       if (cellA1 === CONFIG.INTAKE_CELL_FINANCIAL_AID && editedValue === 'TRUE') {
          const email = sh.getRange(CONFIG.INTAKE_CELL_EMAIL).getValue();
+         
          if (validateEmail(email)) {
+            // NOTE: Ensure 'FINANCIAL_AID_2025' matches the key in forms_catalogue.js. Update to 2026 if needed!
             if(sendForm_('FINANCIAL_AID_2025', { uid, email, responsible: sh.getRange(CONFIG.INTAKE_CELL_RESPONSIBLE_PARTY).getValue() })) {
                sh.getRange(CONFIG.INTAKE_TAB_FINANCIAL_AID_NOTE).setValue('Form Sent!');
             }
-         } else { sh.getRange(CONFIG.INTAKE_CELL_FINANCIAL_AID).setValue(false); }
+         } else { 
+             // WARN: Missing Email
+             warnMissingEmail_(sh, CONFIG.INTAKE_CELL_FINANCIAL_AID, 'Financial Aid Application');
+         }
       }
 
+      // C) Telehealth
       if (cellA1 === CONFIG.INTAKE_CELL_TELEHEALTH_LINK && editedValue === 'TRUE') {
          const dateStr = sh.getRange(CONFIG.INTAKE_CELL_TELEHEALTH_DATE).getDisplayValue();
          const timeStr = sh.getRange(CONFIG.INTAKE_CELL_TELEHEALTH_TIME).getDisplayValue();
@@ -95,10 +108,12 @@ function editHandler(e) {
                  sh.getRange(CONFIG.INTAKE_TAB_TELEHEALTH_LINK_NOTE).setValue('Link Sent!');
              }
          } else { 
-            sh.getRange(CONFIG.INTAKE_CELL_TELEHEALTH_LINK).setValue(false); 
-            SpreadsheetApp.getUi().alert('Missing Email', 'Please enter a valid email address.', SpreadsheetApp.getUi().ButtonSet.OK);
+            // WARN: Missing Email
+            warnMissingEmail_(sh, CONFIG.INTAKE_CELL_TELEHEALTH_LINK, 'Telehealth Link');
          }
       }
+
+      // --- SYNC TRIGGERS ---
 
       // Checkbox Sync
       if (cellA1 === CONFIG.INTAKE_CELL_ACTIVE) syncActive_(uid, editedValue === 'TRUE', sheetName);
@@ -200,4 +215,17 @@ function editHandler(e) {
 
   // 5. PROPAGATE SHARED INFO
   if (syncSharedInfo && uid) updateSharedPatientInfo(uid, newData, sheetName);
+}
+
+// --- HELPER FOR UI WARNINGS ---
+function warnMissingEmail_(sheet, cellToUncheck, formDescription) {
+  // 1. Uncheck the box so the user can try again later
+  sheet.getRange(cellToUncheck).setValue(false); 
+  
+  // 2. Alert the user
+  SpreadsheetApp.getUi().alert(
+    'Missing Email Address', 
+    `Cannot send ${formDescription} because the email field is empty or invalid.\n\nPlease enter a valid email address in the 'Email' cell and try again.`, 
+    SpreadsheetApp.getUi().ButtonSet.OK
+  );
 }
