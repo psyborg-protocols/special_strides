@@ -2,6 +2,8 @@
  * NEW YEAR ROLLOVER LOGIC
  * ================================================================ */
 
+const TEMPLATE_FOLDER_ID = '1lhgmsFF9FRdARoWs8y7tQjvDtS-bB1mq'
+
 /* 1. ROLLOVER (CREATE NEW WORKBOOK) -------------------------- */
 
 function openRolloverDialog() {
@@ -11,78 +13,56 @@ function openRolloverDialog() {
   SpreadsheetApp.getUi().showModalDialog(html, 'Create New Year Workbook');
 }
 
-/**
- * Backend function called by RolloverDialog.html
- */
+
 function processRollover(targetYear, finAidUrl) {
   try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const currentName = ss.getName();
+    // 1. COPY THE ENTIRE FOLDER
+    // This performs the "magic" copy that preserves the Form<->Sheet link
+    // and keeps the "Form Responses" tab intact (no "Form Responses 2").
+    const templateFolder = DriveApp.getFolderById(TEMPLATE_FOLDER_ID);
+    const newFolder = templateFolder.makeCopy(`Special Strides ${targetYear}`);
     
-    // 1. Determine new name
-    let newName = currentName.match(/20\d{2}/) 
-      ? currentName.replace(/20\d{2}/, targetYear) 
-      : `${targetYear} ${currentName}`;
+    // 2. LOCATE THE NEW FILES
+    // We iterate through the new folder to find our new Sheet and Form
+    let newSS = null;
+    let newForm = null;
+    
+    const files = newFolder.getFiles();
+    while (files.hasNext()) {
+      const file = files.next();
+      const mime = file.getMimeType();
       
-    // 2. Make Copy
-    const newFile = DriveApp.getFileById(ss.getId()).makeCopy(newName);
-    const newSS = SpreadsheetApp.openById(newFile.getId());
-    
-    // 3. Clean up the NEW sheet
-    cleanUpNewSheet_(newSS, targetYear);
-    
-// 4. Handle Google Form (Intake) - PATCHED: Uses System_Form_Links only
-    let newFormUrl = '(Form not found - manual link required)';
-    try {
-      let formUrl = null;
-
-      // A) Look up the 'INTAKE' URL in the System_Form_Links sheet
-      const linkSheet = ss.getSheetByName(CONFIG.FORM_LINKS);
-      if (linkSheet) {
-        const data = linkSheet.getDataRange().getValues();
-        // Loop rows (skipping header) to find the INTAKE key
-        for (let i = 1; i < data.length; i++) {
-          if (data[i][CONFIG.LINKS_COL_KEY - 1] === 'INTAKE') {
-            formUrl = data[i][CONFIG.LINKS_COL_URL - 1];
-            break;
-          }
-        }
+      if (mime === MimeType.GOOGLE_SHEETS) {
+        newSS = SpreadsheetApp.openById(file.getId());
+        file.setName(`${targetYear} Intake Communication Log`); // Rename file
+      } 
+      else if (mime === MimeType.GOOGLE_FORMS) {
+        newForm = FormApp.openById(file.getId());
+        file.setName(`New Client/Participant Intake ${targetYear}`); // Rename file
       }
-
-      // B) If URL found, process the copy
-      if (formUrl) {
-        const oldForm = FormApp.openByUrl(formUrl);
-        const oldFormFile = DriveApp.getFileById(oldForm.getId());
-        
-        // Copy the form
-        const newFormFile = oldFormFile.makeCopy(`New Client/Participant Intake ${targetYear}`);
-        const newForm = FormApp.openById(newFormFile.getId());
-        
-        // Link new form to new spreadsheet
-        newForm.setDestination(FormApp.DestinationType.SPREADSHEET, newSS.getId());
-        fixFormDestinationTab_(newSS); // Fix the "Form Responses 2" issue
-
-        // Update settings
-        newFormUrl = newForm.getEditUrl(); // Store EDIT url so next year's rollover can find the ID
-        newForm.setConfirmationMessage(`Thank you. Your ${targetYear} intake has been received.`);
-      } else {
-        Logger.log('Warning: No INTAKE row found in System_Form_Links.');
-      }
-    } catch (e) {
-      console.error('Error handling forms: ' + e.message);
     }
 
-    // 5. Update System_Form_Links in the NEW sheet
+    if (!newSS || !newForm) throw new Error("Could not find Sheet or Form in template folder.");
+
+    // 3. UPDATE SETTINGS 
+    // The link already exists! We just need to update the text.
+    const newFormUrl = newForm.getEditUrl(); // Store Edit URL for safety
+    newForm.setConfirmationMessage(`Thank you. Your ${targetYear} intake has been received.`);
+    
+    setupNewYearTabs_(newSS, targetYear);
+
+    // 4. UPDATE INTERNAL LINKS
+    // Update the System_Form_Links tab so the new workbook knows its own form
     updateSystemLinks_(newSS, targetYear, newFormUrl, finAidUrl);
 
-    // Return success object to the HTML runner
     return {
       success: true,
       newUrl: newSS.getUrl(),
-      newName: newName
+      newName: newSS.getName()
     };
 
   } catch (e) {
+    console.error(e);
     return { success: false, error: e.message };
   }
 }
@@ -124,87 +104,41 @@ function processTriggerInstall() {
   }
 }
 
-/* -----------------------------------------------------------
- * HELPER FUNCTIONS (Logic remains largely the same)
- * ----------------------------------------------------------- */
+/* ================================================================
+ * HELPERS
+ * ================================================================ */
 
-function cleanUpNewSheet_(targetSS, targetYear) {
-  const sheets = targetSS.getSheets();
-  const deleteRequests = [];
+function setupNewYearTabs_(ss, targetYear) {
+  const sheets = ss.getSheets();
   
-  const systemKeywords = [
-    'Patient_Registry', 'Intake_Template', 'System_Form_Links',
-    'Telephone_Log', 'Waiting_List', 'Email_History', 'Form Responses'
+  // Define what the tabs are named in your MASTER TEMPLATE
+  // vs. what they need to be named in the LIVE FILE.
+  const mappings = [
+    { contains: 'Telephone_Log',  prefix: 'Telephone_Log_' },
+    { contains: 'Waiting_List',   prefix: 'Waiting_List_' },
+    { contains: 'Email_History',  prefix: 'Email_History_' }
   ];
 
   sheets.forEach(sh => {
     const name = sh.getName();
-    const isSystem = systemKeywords.some(key => name.includes(key));
-
-    if (!isSystem) {
-      // Mark old patient tabs for deletion
-      deleteRequests.push({ deleteSheet: { sheetId: sh.getSheetId() } });
-    } else {
-      // --- System Sheet Cleanup & Hiding Logic ---
-
-      if (name.includes('Form Responses')) {
-         if (sh.getLastRow() > 1) sh.deleteRows(2, sh.getLastRow() - 1);
-         sh.hideSheet(); // HIDE
-      } 
-      else if (name.includes('Telephone_Log')) {
-         if (sh.getLastRow() > CONFIG.TL_HEADER_ROWS) {
-            sh.getRange(CONFIG.TL_HEADER_ROWS + 1, 1, sh.getLastRow() - CONFIG.TL_HEADER_ROWS, sh.getLastColumn()).clearContent();
-         }
-         sh.setName(`Telephone_Log_${targetYear}`); 
-         sh.showSheet(); // SHOW
-         targetSS.setActiveSheet(sh); // Make this the default active tab
+    
+    mappings.forEach(map => {
+      // If the sheet name matches the template pattern (e.g. "Telephone_Log_Template")
+      if (name.includes(map.contains)) {
+        const newName = `${map.prefix}${targetYear}`;
+        
+        // Rename only if it's not already correct
+        if (name !== newName) {
+          sh.setName(newName);
+        }
+        
+        // Ensure main tabs are visible
+        if (map.contains !== 'Email_History') {
+          sh.showSheet(); 
+        }
       }
-      else if (name.includes('Waiting_List')) {
-         if (sh.getLastRow() > CONFIG.WL_HEADER_ROWS) {
-           sh.getRange(CONFIG.WL_HEADER_ROWS + 1, 1, sh.getLastRow() - CONFIG.WL_HEADER_ROWS, sh.getLastColumn()).clearContent();
-         }
-         sh.setName(`Waiting_List_${targetYear}`);
-         sh.showSheet(); // SHOW
-      }
-      else if (name.includes('Email_History')) {
-         if (sh.getLastRow() > 1) sh.deleteRows(2, sh.getLastRow() - 1);
-         sh.setName(`Email_History_${targetYear}`);
-         sh.hideSheet(); // HIDE
-      }
-      else if (name.includes('Patient_Registry')) {
-         if (sh.getLastRow() > 1) sh.deleteRows(2, sh.getLastRow() - 1);
-         sh.hideSheet(); // HIDE
-      }
-      else if (name.includes('Intake_Template')) {
-         sh.hideSheet(); // HIDE
-      }
-      else if (name.includes('System_Form_Links')) {
-         sh.hideSheet(); // HIDE
-      }
-    }
+    });
   });
-
-  if (deleteRequests.length > 0) {
-    try {
-      Sheets.Spreadsheets.batchUpdate({requests: deleteRequests}, targetSS.getId());
-    } catch (e) { console.error(e); }
-  }
-}
-
-function fixFormDestinationTab_(ss) {
-  const sheets = ss.getSheets();
-  let oldRespSheet = null;
-  let newRespSheet = null;
-  
-  sheets.forEach(s => {
-    if (s.getName() === CONFIG.FORM_RESPONSES) oldRespSheet = s;
-    if (s.getName().startsWith('Form Responses') && s.getName() !== CONFIG.FORM_RESPONSES) newRespSheet = s;
-  });
-
-  if (oldRespSheet && newRespSheet) {
-    ss.deleteSheet(oldRespSheet);
-    newRespSheet.setName(CONFIG.FORM_RESPONSES);
-  }
 }
 
 function updateSystemLinks_(ss, year, intakeUrl, finAidUrl) {
