@@ -58,11 +58,20 @@ function levenshteinDistance(s, t) {
   return mat[rows - 1][cols - 1];
 }
 
-function findRowByUid_(sh, uid, uidCol, headerRows) {
-  const firstData = headerRows + 1;
-  const uidArr = sh.getRange(firstData, uidCol, sh.getLastRow() - headerRows, 1).getValues().flat();
-  const idx = uidArr.indexOf(uid);
-  return (idx === -1) ? 0 : firstData + idx;
+function findRowByUid_(sheet, uid, colIndex, headerRows) {
+  if (!sheet) return 0;
+  
+  const lastRow = sheet.getLastRow();
+  
+  // Guard clause: If there is no data below the headers, stop immediately.
+  if (lastRow <= headerRows) return 0;
+
+  // Now it is safe to define the range
+  // (lastRow - headerRows) will always be >= 1 here
+  const data = sheet.getRange(headerRows + 1, colIndex, lastRow - headerRows, 1).getValues().flat();
+  
+  const idx = data.indexOf(uid);
+  return (idx === -1) ? 0 : idx + headerRows + 1;
 }
 
 function isPlaceholderEmail(email) {
