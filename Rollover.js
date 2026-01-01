@@ -142,30 +142,44 @@ function cleanUpNewSheet_(targetSS, targetYear) {
     const isSystem = systemKeywords.some(key => name.includes(key));
 
     if (!isSystem) {
+      // Mark old patient tabs for deletion
       deleteRequests.push({ deleteSheet: { sheetId: sh.getSheetId() } });
     } else {
-      // System Sheet Cleanup
+      // --- System Sheet Cleanup & Hiding Logic ---
+
       if (name.includes('Form Responses')) {
          if (sh.getLastRow() > 1) sh.deleteRows(2, sh.getLastRow() - 1);
+         sh.hideSheet(); // HIDE
       } 
       else if (name.includes('Telephone_Log')) {
          if (sh.getLastRow() > CONFIG.TL_HEADER_ROWS) {
             sh.getRange(CONFIG.TL_HEADER_ROWS + 1, 1, sh.getLastRow() - CONFIG.TL_HEADER_ROWS, sh.getLastColumn()).clearContent();
          }
          sh.setName(`Telephone_Log_${targetYear}`); 
+         sh.showSheet(); // SHOW
+         targetSS.setActiveSheet(sh); // Make this the default active tab
       }
       else if (name.includes('Waiting_List')) {
          if (sh.getLastRow() > CONFIG.WL_HEADER_ROWS) {
            sh.getRange(CONFIG.WL_HEADER_ROWS + 1, 1, sh.getLastRow() - CONFIG.WL_HEADER_ROWS, sh.getLastColumn()).clearContent();
          }
          sh.setName(`Waiting_List_${targetYear}`);
+         sh.showSheet(); // SHOW
       }
       else if (name.includes('Email_History')) {
          if (sh.getLastRow() > 1) sh.deleteRows(2, sh.getLastRow() - 1);
          sh.setName(`Email_History_${targetYear}`);
+         sh.hideSheet(); // HIDE
       }
       else if (name.includes('Patient_Registry')) {
          if (sh.getLastRow() > 1) sh.deleteRows(2, sh.getLastRow() - 1);
+         sh.hideSheet(); // HIDE
+      }
+      else if (name.includes('Intake_Template')) {
+         sh.hideSheet(); // HIDE
+      }
+      else if (name.includes('System_Form_Links')) {
+         sh.hideSheet(); // HIDE
       }
     }
   });
