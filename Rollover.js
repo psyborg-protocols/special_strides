@@ -77,19 +77,37 @@ function initializeNewYearTriggers() {
  */
 function processTriggerInstall() {
   try {
+    const ss = SpreadsheetApp.getActive();
+
+    // --- NEW: Rename 'Form Responses X' to 'Form Responses' ---
+    const targetName = 'Form Responses';
+    
+    // Only proceed if a sheet named 'Form Responses' does NOT currently exist
+    if (!ss.getSheetByName(targetName)) {
+      const sheets = ss.getSheets();
+      
+      // Look for a sheet that matches "Form Responses" followed by a number (e.g., "Form Responses 1")
+      const sheetToRename = sheets.find(sheet => /^Form Responses \d+$/.test(sheet.getName()));
+      
+      if (sheetToRename) {
+        sheetToRename.setName(targetName);
+      }
+    }
+    // ----------------------------------------------------------
+
     // 1. Delete existing triggers
     const triggers = ScriptApp.getProjectTriggers();
     triggers.forEach(t => ScriptApp.deleteTrigger(t));
     
     // 2. Install Form Submit Trigger
     ScriptApp.newTrigger('onFormSubmitTrigger')
-      .forSpreadsheet(SpreadsheetApp.getActive())
+      .forSpreadsheet(ss)
       .onFormSubmit()
       .create();
       
     // 3. Install Edit Trigger
     ScriptApp.newTrigger('editHandler')
-      .forSpreadsheet(SpreadsheetApp.getActive())
+      .forSpreadsheet(ss)
       .onEdit()
       .create();
 
@@ -111,8 +129,7 @@ function setupNewYearTabs_(ss, targetYear) {
   const mappings = [
     { contains: 'Telephone_Log',  prefix: 'Telephone_Log_' },
     { contains: 'Waiting_List',   prefix: 'Waiting_List_' },
-    { contains: 'Email_History',  prefix: 'Email_History_' },
-    { contains: 'Form Responses ', prefix: 'Form Responses'}
+    { contains: 'Email_History',  prefix: 'Email_History_' }
   ];
 
   sheets.forEach(sh => {
