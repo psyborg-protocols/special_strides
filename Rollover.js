@@ -17,15 +17,15 @@ const TEMPLATE_FORM_ID = '1SUz8-4a33F01t-N1Sq71XHIqugUsaKIBwYgRu_ovp1k';
 function processRollover(targetYear, finAidUrl) {
   try {
     // 1. CREATE THE NEW FOLDER
-    // We create a container folder so 2026 files stay organized
-    const newFolder = DriveApp.createFolder(`Special Strides ${targetYear}`);
+    // We create a container folder so new year's files stay organized
+    const newFolder = DriveApp.createFolder(`Special Strides Intake ${targetYear}`);
 
     // 2. COPY THE TEMPLATE FILES INTO THE NEW FOLDER
     const templateSSFile = DriveApp.getFileById(TEMPLATE_SS_ID);
     const templateFormFile = DriveApp.getFileById(TEMPLATE_FORM_ID);
 
-    const newSSFile = templateSSFile.makeCopy(`Special Strides Workbook ${targetYear}`, newFolder);
-    const newFormFile = templateFormFile.makeCopy(`${targetYear} Intake Form`, newFolder);
+    const newSSFile = templateSSFile.makeCopy(`${targetYear} Intake Communication Log`, newFolder);
+    const newFormFile = templateFormFile.makeCopy(`New Client/Participant Intake ${targetYear}`, newFolder);
 
     // 3. OPEN THE NEW FILES
     const newSS = SpreadsheetApp.openById(newSSFile.getId());
