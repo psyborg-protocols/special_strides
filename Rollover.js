@@ -40,9 +40,8 @@ function processRollover(targetYear, finAidUrl) {
 
     newForm.setDestination(FormApp.DestinationType.SPREADSHEET, newSS.getId());
 
-    // 5. UPDATE SETTINGS
+    // 5. GET FORM URL
     const newFormUrl = newForm.getEditUrl(); 
-    newForm.setConfirmationMessage(`Thank you. Your ${targetYear} intake has been received.`);
     
     // 6. UPDATE INTERNAL LINKS
     updateSystemLinks_(newSS, targetYear, newFormUrl, finAidUrl);
