@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+      body { padding: 20px; font-family: sans-serif; text-align: center; }
+      #loading, #success { display: none; margin-top: 30px; }
+      h5 { margin-bottom: 20px; }
+      p { color: #666; }
+    </style>
+  </head>
+  <body>
+
+    <div id="confirmForm">
+      <h5>Initialize System</h5>
+      <p>This will install the automation triggers (Form Submit & Edit) for this workbook.</p>
+      
+      <br>
+      <button id="btnRun" class="btn blue waves-effect waves-light">
+        <i class="material-icons left">build</i> Install Triggers
+      </button>
+    </div>
+
+    <div id="loading">
+      <div class="preloader-wrapper active">
+        <div class="spinner-layer spinner-blue-only">
+          <div class="circle-clipper left"><div class="circle"></div></div>
+          <div class="gap-patch"><div class="circle"></div></div>
+          <div class="circle-clipper right"><div class="circle"></div></div>
+        </div>
+      </div>
+      <h5>Installing...</h5>
+    </div>
+
+    <div id="success">
+      <i class="material-icons medium green-text">check_circle</i>
+      <h5>System Ready</h5>
+      <p>Triggers have been installed successfully.</p>
+      <button class="btn grey lighten-2 black-text" onclick="google.script.host.close()">Close</button>
+    </div>
+
+    <script>
+      document.getElementById('btnRun').addEventListener('click', function(){
+        // Switch UI
+        document.getElementById('confirmForm').style.display = 'none';
+        document.getElementById('loading').style.display = 'block';
+
+        // Run Server Function
+        google.script.run
+          .withSuccessHandler(onSuccess)
+          .withFailureHandler(onFail)
+          .processTriggerInstall();
+      });
+
+      function onSuccess(result) {
+        document.getElementById('loading').style.display = 'none';
+        
+        if (result.success) {
+          document.getElementById('success').style.display = 'block';
+        } else {
+          showError(result.error);
+        }
+      }
+
+      function onFail(err) {
+        document.getElementById('loading').style.display = 'none';
+        showError(err.message);
+      }
+
+      function showError(msg) {
+        document.body.innerHTML = `
+          <h5 style="color:red">Error</h5>
+          <p>${msg}</p>
+          <button onclick="google.script.host.close()">Close</button>
+        `;
+      }
+    </script>
+  </body>
+</html>

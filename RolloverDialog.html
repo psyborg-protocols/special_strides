@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+      body { padding: 20px; font-family: sans-serif; text-align: center; }
+      .input-field { margin-top: 25px; text-align: left; }
+      .spinner-layer { border-color: #2196F3; }
+      #loading, #success { display: none; margin-top: 40px; }
+      h5 { margin-bottom: 30px; }
+      p { color: #666; }
+    </style>
+  </head>
+  <body>
+
+    <div id="inputForm">
+      <h5>New Year Workbook</h5>
+      <p>This will create a copy, clear history, and rollover system sheets.</p>
+      
+      <div class="input-field">
+        <input id="year" type="number" value="2026">
+        <label for="year" class="active">Target Year</label>
+      </div>
+
+      <div class="input-field">
+        <input id="finLink" type="text" placeholder="https://...">
+        <label for="finLink" class="active">Financial Aid URL (Optional)</label>
+      </div>
+
+      <br>
+      <button id="btnCreate" class="btn blue waves-effect waves-light" style="width:100%">
+        <i class="material-icons left">save</i> Create Workbook
+      </button>
+    </div>
+
+    <div id="loading">
+      <div class="preloader-wrapper big active">
+        <div class="spinner-layer spinner-blue-only">
+          <div class="circle-clipper left"><div class="circle"></div></div>
+          <div class="gap-patch"><div class="circle"></div></div>
+          <div class="circle-clipper right"><div class="circle"></div></div>
+        </div>
+      </div>
+      <h5>Creating Workbook...</h5>
+      <p>Please wait. Copying sheets and forms.</p>
+    </div>
+
+    <div id="success">
+      <i class="material-icons large green-text">check_circle</i>
+      <h5>Success!</h5>
+      <p>The new workbook has been created.</p>
+      <a id="newLink" href="#" target="_blank" class="btn green waves-effect waves-light">
+        Open New Workbook
+      </a>
+      <br><br>
+      <button class="btn-flat grey-text" onclick="google.script.host.close()">Close</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+    <script>
+      document.getElementById('btnCreate').addEventListener('click', function(){
+        const year = document.getElementById('year').value;
+        const url  = document.getElementById('finLink').value;
+
+        if (!year || year.length !== 4) {
+          M.toast({html: 'Please enter a valid 4-digit year'});
+          return;
+        }
+
+        // Switch UI
+        document.getElementById('inputForm').style.display = 'none';
+        document.getElementById('loading').style.display = 'block';
+
+        // Run Server Function
+        google.script.run
+          .withSuccessHandler(onSuccess)
+          .withFailureHandler(onFail)
+          .processRollover(year, url);
+      });
+
+      function onSuccess(result) {
+        document.getElementById('loading').style.display = 'none';
+        
+        if (result.success) {
+          document.getElementById('success').style.display = 'block';
+          const linkBtn = document.getElementById('newLink');
+          linkBtn.href = result.newUrl;
+          linkBtn.innerText = "Open " + result.newName;
+        } else {
+          showError(result.error);
+        }
+      }
+
+      function onFail(err) {
+        document.getElementById('loading').style.display = 'none';
+        showError(err.message);
+      }
+
+      function showError(msg) {
+        document.body.innerHTML = `
+          <h5 class="red-text">Error</h5>
+          <p>${msg}</p>
+          <button class="btn grey" onclick="google.script.host.close()">Close</button>
+        `;
+      }
+    </script>
+  </body>
+</html>
