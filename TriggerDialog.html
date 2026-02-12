@@ -1,81 +1,148 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <base target="_top">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    <style>
-      body { padding: 20px; font-family: sans-serif; text-align: center; }
-      #loading, #success { display: none; margin-top: 30px; }
-      h5 { margin-bottom: 20px; }
-      p { color: #666; }
-    </style>
-  </head>
-  <body>
 
-    <div id="confirmForm">
-      <h5>Initialize System</h5>
-      <p>This will install the automation triggers (Form Submit & Edit) for this workbook.</p>
-      
-      <br>
-      <button id="btnRun" class="btn blue waves-effect waves-light">
-        <i class="material-icons left">build</i> Install Triggers
+<head>
+  <base target="_top">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <style>
+    body {
+      padding: 20px;
+      font-family: sans-serif;
+      text-align: center;
+    }
+
+    #loading,
+    #success {
+      display: none;
+      margin-top: 30px;
+    }
+
+    h5 {
+      margin-bottom: 20px;
+    }
+
+    p {
+      color: #666;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="confirmForm">
+    <h5>Initialize System</h5>
+    <p>This will install the automation triggers (Form Submit & Edit) for this workbook.</p>
+
+    <br>
+    <button id="btnRun" class="btn blue waves-effect waves-light">
+      <i class="material-icons left">build</i> Install Triggers
+    </button>
+  </div>
+
+  <div id="loading">
+    <div class="preloader-wrapper active">
+      <div class="spinner-layer spinner-blue-only">
+        <div class="circle-clipper left">
+          <div class="circle"></div>
+        </div>
+        <div class="gap-patch">
+          <div class="circle"></div>
+        </div>
+        <div class="circle-clipper right">
+          <div class="circle"></div>
+        </div>
+      </div>
+    </div>
+    <h5>Installing...</h5>
+  </div>
+
+  <!-- NEW: GCP Project Configuration Step -->
+  <div id="step-gcp" style="display:none; text-align: left; padding: 0 15px;">
+    <h5 style="text-align: center;">Final Step: Configure GCP Project</h5>
+    <p style="text-align: center;">To prevent quota errors, you must link this project to our Standard GCP Project.</p>
+
+    <ol>
+      <li>In the script editor, go to <strong style="font-weight:bold">Project Settings</strong> <i
+          class="material-icons tiny">settings</i> (gear icon on the left).</li>
+      <li>Scroll down to <strong>Google Cloud Platform (GCP) Project</strong>.</li>
+      <li>Click <strong style="color:#1976d2">Change project</strong>.</li>
+      <li>Enter the Project Number below:</li>
+    </ol>
+
+    <div
+      style="background-color: #f5f5f5; padding: 10px; border-radius: 4px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+      <code id="gcp-number" style="font-size: 1.2em; font-weight: bold;">17746651254</code>
+      <button class="btn-small white black-text waves-effect waves-light" onclick="copyGcpNumber()">
+        <i class="material-icons left">content_copy</i> Copy
       </button>
     </div>
 
-    <div id="loading">
-      <div class="preloader-wrapper active">
-        <div class="spinner-layer spinner-blue-only">
-          <div class="circle-clipper left"><div class="circle"></div></div>
-          <div class="gap-patch"><div class="circle"></div></div>
-          <div class="circle-clipper right"><div class="circle"></div></div>
-        </div>
-      </div>
-      <h5>Installing...</h5>
+    <div style="text-align: center;">
+      <button class="btn blue" onclick="finishGcpStep()">Done</button>
     </div>
+  </div>
 
-    <div id="success">
-      <i class="material-icons medium green-text">check_circle</i>
-      <h5>System Ready</h5>
-      <p>Triggers have been installed successfully.</p>
-      <button class="btn grey lighten-2 black-text" onclick="google.script.host.close()">Close</button>
-    </div>
+  <div id="success">
+    <i class="material-icons medium green-text">check_circle</i>
+    <h5>System Ready</h5>
+    <p>Triggers have been installed successfully.</p>
+    <button class="btn grey lighten-2 black-text" onclick="google.script.host.close()">Close</button>
+  </div>
 
-    <script>
-      document.getElementById('btnRun').addEventListener('click', function(){
-        // Switch UI
-        document.getElementById('confirmForm').style.display = 'none';
-        document.getElementById('loading').style.display = 'block';
+  <script>
+    document.getElementById('btnRun').addEventListener('click', function () {
+      // Switch UI
+      document.getElementById('confirmForm').style.display = 'none';
+      document.getElementById('loading').style.display = 'block';
 
-        // Run Server Function
-        google.script.run
-          .withSuccessHandler(onSuccess)
-          .withFailureHandler(onFail)
-          .processTriggerInstall();
-      });
+      // Run Server Function
+      google.script.run
+        .withSuccessHandler(onSuccess)
+        .withFailureHandler(onFail)
+        .processTriggerInstall();
+    });
 
-      function onSuccess(result) {
-        document.getElementById('loading').style.display = 'none';
-        
-        if (result.success) {
-          document.getElementById('success').style.display = 'block';
-        } else {
-          showError(result.error);
-        }
+    function onSuccess(result) {
+      document.getElementById('loading').style.display = 'none';
+
+      if (result.success) {
+        // Show GCP Step instead of Success directly
+        document.getElementById('step-gcp').style.display = 'block';
+      } else {
+        showError(result.error);
       }
+    }
 
-      function onFail(err) {
-        document.getElementById('loading').style.display = 'none';
-        showError(err.message);
-      }
+    function finishGcpStep() {
+      document.getElementById('step-gcp').style.display = 'none';
+      document.getElementById('success').style.display = 'block';
+    }
 
-      function showError(msg) {
-        document.body.innerHTML = `
+    function copyGcpNumber() {
+      var range = document.createRange();
+      range.selectNode(document.getElementById('gcp-number'));
+      window.getSelection().removeAllRanges();
+      window.getSelection().addRange(range);
+      document.execCommand('copy');
+      window.getSelection().removeAllRanges();
+      M.toast({ html: 'Project Number Copied!' });
+    }
+
+    function onFail(err) {
+      document.getElementById('loading').style.display = 'none';
+      showError(err.message);
+    }
+
+    function showError(msg) {
+      document.body.innerHTML = `
           <h5 style="color:red">Error</h5>
           <p>${msg}</p>
           <button onclick="google.script.host.close()">Close</button>
         `;
-      }
-    </script>
-  </body>
+    }
+  </script>
+</body>
+
 </html>
