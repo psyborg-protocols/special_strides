@@ -76,25 +76,32 @@ function initializeNewYearTriggers() {
  */
 function processTriggerInstall() {
   try {
-    const ss = SpreadsheetApp.getActive();
+    // --- Check Document Properties for an existing trigger lock ---
+    const props = PropertiesService.getDocumentProperties();
+    const installedBy = props.getProperty('TRIGGERS_INSTALLED_BY');
 
-    // --- NEW: Rename 'Form Responses X' to 'Form Responses' ---
-    const targetName = 'Form Responses';
+    if (installedBy) {
+       // Abort installation and tell the user who currently owns the triggers
+       return { 
+         success: false, 
+         error: `Triggers are already installed for this workbook by: ${installedBy}.\n\nTo prevent duplicate emails, you cannot install a second set of triggers. If ownership needs to be transferred, the current triggers must be deleted and the system lock must be reset.` 
+       };
+    }
+    // -------------------------------------------------------------------
+
+    const ss = SpreadsheetApp.getActive();
     
-    // Only proceed if a sheet named 'Form Responses' does NOT currently exist
+    // Rename 'Form Responses X' to 'Form Responses'
+    const targetName = 'Form Responses';
     if (!ss.getSheetByName(targetName)) {
       const sheets = ss.getSheets();
-      
-      // Look for a sheet that matches "Form Responses" followed by a number (e.g., "Form Responses 1")
       const sheetToRename = sheets.find(sheet => /^Form Responses \d+$/.test(sheet.getName()));
-      
       if (sheetToRename) {
         sheetToRename.setName(targetName);
       }
     }
-    // ----------------------------------------------------------
-
-    // 1. Delete existing triggers
+    
+    // 1. Delete existing triggers (for the CURRENT user only)
     const triggers = ScriptApp.getProjectTriggers();
     triggers.forEach(t => ScriptApp.deleteTrigger(t));
     
@@ -110,10 +117,21 @@ function processTriggerInstall() {
       .onEdit()
       .create();
 
+    // --- Lock the system and record the owner's email ---
+    const currentUser = Session.getEffectiveUser().getEmail() || 'Unknown User';
+    props.setProperty('TRIGGERS_INSTALLED_BY', currentUser);
+    // ---------------------------------------------------------
+
     return { success: true };
   } catch (e) {
     return { success: false, error: e.message };
   }
+}
+
+function resetTriggerLock() {
+  const props = PropertiesService.getDocumentProperties();
+  props.deleteProperty('TRIGGERS_INSTALLED_BY');
+  SpreadsheetApp.getUi().alert('Success', 'The trigger installation lock has been removed. A new user can now install triggers.', SpreadsheetApp.getUi().ButtonSet.OK);
 }
 
 /* ================================================================

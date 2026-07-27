@@ -12,6 +12,7 @@ function onOpen() {
     .addSubMenu(SpreadsheetApp.getUi().createMenu('⚙️ Admin / System')
         .addItem('📅 Create New Year Workbook', 'openRolloverDialog')
         .addItem('⚡ Initialize New Year Triggers', 'initializeNewYearTriggers') // Run this in the new file
+        .addItem('🔓 Reset Trigger Lock', 'resetTriggerLock')
     )
     .addToUi();
 }
