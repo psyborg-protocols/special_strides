@@ -19,6 +19,17 @@ function getFormResponseForUid_(uid) {
   return { questions: headers, answers };
 }
 
+/** Checks "Responded to inquiry" (column B) on every form response with this UID. */
+function markFormResponseResponded_(uid) {
+  const fs = SS.getSheetByName(CONFIG.FORM_RESPONSES);
+  if (!uid || !fs || fs.getLastRow() <= 1) return;
+
+  const uidCol = fs.getRange(2, CONFIG.FR_COL_UID, fs.getLastRow() - 1, 1).getValues().flat();
+  uidCol.forEach((u, i) => {
+    if (u === uid) fs.getRange(i + 2, CONFIG.FR_COL_RESPONDED).setValue(true);
+  });
+}
+
 function pasteFormAnswersToIntakeStructured_(sheet, qa) {
   const val  = colIndex => qa.answers[colIndex - 1] || '';
   const join = colIndexes => colIndexes.map(val).filter(Boolean).join('\n');

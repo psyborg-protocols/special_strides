@@ -121,8 +121,10 @@ function editHandler(e) {
       if (cellA1 === CONFIG.INTAKE_CELL_SPOT_FOUND) syncSpotFound_(uid, editedValue === 'TRUE', sheetName);
       if (cellA1 === CONFIG.INTAKE_CELL_NOT_INTERESTED) syncNotInterested_(uid, editedValue === 'TRUE', sheetName);
 
-      // Call Completed -> Add to Waiting List
+      // Call Completed -> Mark form response "Responded to inquiry" + Add to Waiting List
       if (cellA1 === CONFIG.INTAKE_CELL_CALL_COMPLETED && editedValue === 'TRUE') {
+         markFormResponseResponded_(uid);
+
          const wl = sheet_(CONFIG.WAITING_LIST);
          const uidList = wl.getRange(2, CONFIG.WL_COL_UID, wl.getLastRow()-1, 1).getValues().flat();
          if (uidList.indexOf(uid) === -1) {
