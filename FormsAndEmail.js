@@ -6,8 +6,8 @@ function getFormResponseForUid_(uid) {
   const fs = sheet_(CONFIG.FORM_RESPONSES);
   if (!fs || fs.getLastRow() <= 1) return null;
 
-  const UID_COL = 3; 
-  const TOTAL_COLUMNS = 25;
+  const UID_COL = CONFIG.FR_COL_UID;
+  const TOTAL_COLUMNS = CONFIG.FR_TOTAL_COLUMNS;
 
   const headers = fs.getRange(1, 1, 1, TOTAL_COLUMNS).getValues()[0];
   const uidCol  = fs.getRange(2, UID_COL, fs.getLastRow() - 1, 1).getValues().flat();

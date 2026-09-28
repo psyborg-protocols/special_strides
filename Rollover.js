@@ -100,7 +100,10 @@ function processTriggerInstall() {
         sheetToRename.setName(targetName);
       }
     }
-    
+
+    // Add the "Responded to inquiry" checkbox column (column B) the FR_COL_* mapping expects
+    ensureRespondedColumn_(ss.getSheetByName(targetName));
+
     // 1. Delete existing triggers (for the CURRENT user only)
     const triggers = ScriptApp.getProjectTriggers();
     triggers.forEach(t => ScriptApp.deleteTrigger(t));
@@ -137,6 +140,17 @@ function resetTriggerLock() {
 /* ================================================================
  * HELPERS
  * ================================================================ */
+
+function ensureRespondedColumn_(sheet) {
+  if (!sheet) return;
+  if (sheet.getRange(1, CONFIG.FR_COL_RESPONDED).getValue() === CONFIG.FR_RESPONDED_HEADER) return;
+
+  sheet.insertColumnBefore(CONFIG.FR_COL_RESPONDED);
+  sheet.getRange(1, CONFIG.FR_COL_RESPONDED).setValue(CONFIG.FR_RESPONDED_HEADER);
+  if (sheet.getMaxRows() > 1) {
+    sheet.getRange(2, CONFIG.FR_COL_RESPONDED, sheet.getMaxRows() - 1, 1).insertCheckboxes();
+  }
+}
 
 function setupNewYearTabs_(ss, targetYear) {
   const sheets = ss.getSheets();
