@@ -21,7 +21,7 @@ function openFormAnswerImporter() {
 function showIntakeDialog_(context, title) {
   const tpl = HtmlService.createTemplateFromFile('IntakeCreator');
   tpl.context = JSON.stringify(context).replace(/</g, '\\u003c');
-  SpreadsheetApp.getUi().showModalDialog(tpl.evaluate().setWidth(620).setHeight(640), title);
+  SpreadsheetApp.getUi().showModalDialog(tpl.evaluate().setWidth(620).setHeight(560), title);
 }
 
 /* ---------- Called from IntakeCreator.html --------------------- */
