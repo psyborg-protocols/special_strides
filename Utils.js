@@ -82,7 +82,7 @@ function isPlaceholderEmail(email) {
 
 function isPlaceholderResponsibleParty(responsible) {
   if (!responsible) return true;
-  if (responsible === CONFIG.DEFAULT_TL_RESPONSIBLE_PARTY_NOTE) return true;
+  if (String(responsible).trim() === CONFIG.DEFAULT_TL_DISABLE_FORM_NOTE) return true;
   return false;
 }
 

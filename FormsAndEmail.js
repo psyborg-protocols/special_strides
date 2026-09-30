@@ -204,7 +204,7 @@ function sendForm_(formKey, { uid, email, patient = '', responsible = '', apptDa
   }
 
   const displayName = cfg.displayName || formKey;
-  const confirm = confirmSend_(displayName, responsible || patient || email);
+  const confirm = confirmSend_(displayName, responsible || patient, email);
   if (!confirm.ok) return false;
   responsible = confirm.responsible;
 
@@ -243,17 +243,19 @@ function sendForm_(formKey, { uid, email, patient = '', responsible = '', apptDa
   return true;
 }
 
-function confirmSend_(displayName, responsible) {
+function confirmSend_(displayName, responsible, email) {
   const ui = SpreadsheetApp.getUi();
-  responsible = (responsible || '').trim();
+  responsible = String(responsible || '').trim();
 
   if (responsible) {
-    const yesNo = ui.alert(`Send ${displayName}?`, `Would you like to send “${displayName}” to “${responsible}”?`, ui.ButtonSet.YES_NO);
+    const yesNo = ui.alert(`Send ${displayName}?`, `Would you like to send “${displayName}” to “${responsible}” (${email})?`, ui.ButtonSet.YES_NO);
     return (yesNo === ui.Button.YES) ? { ok: true, responsible } : { ok: false };
   }
 
-  const prompt = ui.prompt(`Send ${displayName}`, 'Enter the recipient’s name:', ui.ButtonSet.OK_CANCEL);
+  // No name on file: ask for one. Left blank, the email uses its general greeting (e.g. "Dear Friend").
+  const prompt = ui.prompt(`Send ${displayName}`,
+    `Sending “${displayName}” to ${email}.\n\nEnter the recipient’s name for the greeting, or leave blank for a general greeting:`,
+    ui.ButtonSet.OK_CANCEL);
   if (prompt.getSelectedButton() !== ui.Button.OK) return { ok: false };
-  const newName = prompt.getResponseText().trim();
-  return newName ? { ok: true, responsible: newName } : { ok: false };
+  return { ok: true, responsible: prompt.getResponseText().trim() };
 }

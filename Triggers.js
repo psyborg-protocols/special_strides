@@ -199,7 +199,7 @@ function editHandler(e) {
             const sentCell = sh.getRange(row, CONFIG.TL_COL_FORM_SENT);
             if (editedValue && validateEmail(editedValue) && sentCell.getValue() !== true) {
                 let resp = sh.getRange(row, CONFIG.TL_COL_RESPONSIBLE).getValue();
-                if (isPlaceholderResponsibleParty(resp)) resp = 'thank you for contacting Special Strides';
+                if (isPlaceholderResponsibleParty(resp)) resp = ''; // sendForm_ then asks staff for the recipient's name
                 if (sendForm_('INTAKE', { uid, email: editedValue, responsible: resp })) {
                     sentCell.setValue(true);
                 }
