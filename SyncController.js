@@ -208,11 +208,38 @@ function syncNotInterested_(uid, newVal, source) {
   });
 }
 
-/** Puts the telehealth appointment (e.g. "10/08/2026 3:00 PM") in the Telephone Log's "Televisit scheduled" column. */
-function syncTelevisitScheduled_(uid, appointment) {
+/** Admin menu: ticks "Form submitted" (column D) for every call whose UID has an intake form response. */
+function updateFormSubmittedColumn() {
+  const tl = sheet_(CONFIG.TELEPHONE_LOG);
+  const first = CONFIG.TL_HEADER_ROWS + 1;
+  const answered = new Set(readFormResponses_().map(r => r.uid.toLowerCase()).filter(Boolean));
+
+  let ticked = 0;
+  if (tl.getLastRow() >= first) {
+    const rows = tl.getRange(first, 1, tl.getLastRow() - first + 1, CONFIG.TL_COL_FORM_SUBMITTED).getValues();
+    rows.forEach((r, i) => {
+      const uid = String(r[CONFIG.TL_COL_UID - 1] || '').trim().toLowerCase();
+      if (uid && answered.has(uid) && r[CONFIG.TL_COL_FORM_SUBMITTED - 1] !== true) {
+        tl.getRange(first + i, CONFIG.TL_COL_FORM_SUBMITTED).setValue(true);
+        ticked++;
+      }
+    });
+  }
+
+  const ui = SpreadsheetApp.getUi();
+  ui.alert('Form Submitted updated',
+    ticked ? `Ticked "Form submitted" for ${ticked} call(s) with a form response.` : 'Every call with a form response was already ticked.',
+    ui.ButtonSet.OK);
+}
+
+/** Ticks the Telephone Log's "Televisit scheduled" checkbox for this client. */
+function syncTelevisitScheduled_(uid) {
   const tl = SS.getSheetByName(CONFIG.TELEPHONE_LOG);
   const row = findRowByUid_(tl, uid, CONFIG.TL_COL_UID, CONFIG.TL_HEADER_ROWS);
-  if (row) tl.getRange(row, CONFIG.TL_COL_TELEVISIT_SCHED).setValue(appointment);
+  if (!row) return;
+  const cell = tl.getRange(row, CONFIG.TL_COL_TELEVISIT_SCHED);
+  cell.insertCheckboxes();   // restores the checkbox if the cell holds text
+  cell.setValue(true);
 }
 
 function addNewTelephoneLogEntry() {

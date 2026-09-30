@@ -14,6 +14,7 @@ function onOpen() {
         .addItem('📅 Create New Year Workbook', 'openRolloverDialog')
         .addItem('⚡ Initialize New Year Triggers', 'initializeNewYearTriggers') // Run this in the new file
         .addItem('🔓 Reset Trigger Lock', 'resetTriggerLock')
+        .addItem('✅ Update Form Submitted in Telephone Log', 'updateFormSubmittedColumn')
     )
     .addToUi();
 }
@@ -25,8 +26,14 @@ function onFormSubmitTrigger(e) {
 
   const header  = e.range.getSheet().getRange(1,1,1,e.range.getLastColumn()).getValues()[0];
   const uidCol  = header.indexOf('UID') + 1;
-  const uid     = e.range.getSheet().getRange(e.range.getRow(), uidCol).getValue();
+  const uid     = String(e.range.getSheet().getRange(e.range.getRow(), uidCol).getValue() || '').trim();
   if (!uid) return;
+
+  // Intake form: tick "Form submitted" in the Telephone Log and Email History
+  if (formKey === 'INTAKE') {
+    markIntakeFormSubmitted_(uid);
+    return;
+  }
 
   const hist = sheet_(CONFIG.HISTORY);
   const data = hist.getDataRange().getValues();
@@ -108,7 +115,7 @@ function editHandler(e) {
          } else if (validateEmail(email)) {
              if (sendForm_('TELEHEALTH_APPT', { uid, email, responsible: sh.getRange(CONFIG.INTAKE_CELL_RESPONSIBLE_PARTY).getValue(), apptDate: `${dateStr}, at ${timeStr}` })) {
                  sh.getRange(CONFIG.INTAKE_TAB_TELEHEALTH_LINK_NOTE).setValue('Link Sent!');
-                 syncTelevisitScheduled_(uid, `${dateStr} ${timeStr}`);
+                 syncTelevisitScheduled_(uid);
              }
          } else { 
             // WARN: Missing Email
