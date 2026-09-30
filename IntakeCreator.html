@@ -2,161 +2,372 @@
 <html>
   <head>
     <base target="_top">
-
-    <!--  Materialize CSS / Icons  -->
-    <link rel="stylesheet"
-          href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-
     <style>
-      body  { padding: 24px 32px 36px 32px; font-size: 0.94rem; }
-      header{ margin-bottom: 22px; }
+      * { box-sizing: border-box; }
+      body { margin: 0; padding: 18px 22px 76px; font: 14px/1.4 Roboto, Arial, sans-serif; color: #212121; }
+      h3 { margin: 0 0 4px; font-size: 17px; font-weight: 500; }
+      .hint { color: #757575; font-size: 12.5px; margin: 0 0 12px; }
+      .screen { display: none; }
+      .screen.on { display: block; }
 
-      /* reserve space so button never overlaps */
-      .select-wrapper { display:block; margin-bottom: 30px; }
+      input[type=text], input[type=email], input[type=tel] {
+        width: 100%; padding: 8px 10px; border: 1px solid #bdbdbd; border-radius: 4px; font-size: 14px; }
+      input:focus { outline: none; border-color: #1a73e8; box-shadow: 0 0 0 1px #1a73e8; }
+      label.field { display: block; margin: 10px 0 3px; font-size: 12.5px; color: #555; }
 
-      /* compact menu text so 25 rows fit without a scroll-bar */
-      ul.dropdown-content li > span {
-        font-size: 0.88rem; line-height: 1.3rem;
-      }
+      .list { border: 1px solid #e0e0e0; border-radius: 4px; max-height: 360px; overflow-y: auto; margin-top: 8px; }
+      .item { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border-bottom: 1px solid #f0f0f0; cursor: pointer; }
+      .item:last-child { border-bottom: 0; }
+      .item:hover { background: #f5f8ff; }
+      .item.sel { background: #e8f0fe; }
+      .item input { margin-top: 3px; }
+      .main { font-weight: 500; }
+      .sub { color: #616161; font-size: 12.5px; }
+      .empty { padding: 14px; color: #757575; text-align: center; }
+
+      .badge { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 10px; margin-left: 6px; white-space: nowrap; }
+      .b-exact { background: #e6f4ea; color: #137333; }
+      .b-possible { background: #fef7e0; color: #b06000; }
+      .chip { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 10px; background: #e8f0fe; color: #1a56c4; margin: 3px 4px 0 0; }
+      .note { display: inline-block; font-size: 11px; color: #8d6e63; margin-top: 3px; }
+
+      .box { border: 1px solid #c8e6c9; background: #f1f8f2; border-radius: 4px; padding: 10px 12px; margin-bottom: 10px; }
+      .who { background: #fafafa; border: 1px solid #eee; border-radius: 4px; padding: 8px 10px; margin-bottom: 12px; font-size: 13px; }
+      .section { margin: 14px 0 2px; font-size: 12px; font-weight: 500; color: #555; text-transform: uppercase; letter-spacing: .03em; }
+      .linkish { color: #1a73e8; cursor: pointer; font-size: 13px; margin-top: 10px; display: inline-block; }
+
+      .footer { position: fixed; left: 0; right: 0; bottom: 0; padding: 12px 22px; background: #fff; border-top: 1px solid #eee;
+                display: flex; justify-content: space-between; gap: 8px; }
+      button { font: inherit; border: 0; border-radius: 4px; padding: 8px 16px; cursor: pointer; }
+      button.primary { background: #1a73e8; color: #fff; }
+      button.primary:disabled { background: #c6dafc; cursor: default; }
+      button.flat { background: #f1f3f4; color: #202124; }
+
+      #error { display: none; background: #fce8e6; color: #a50e0e; border-radius: 4px; padding: 8px 10px; margin-bottom: 10px; font-size: 13px; }
+      .center { text-align: center; padding-top: 80px; color: #555; }
+      .spinner { width: 36px; height: 36px; border: 4px solid #e0e0e0; border-top-color: #1a73e8; border-radius: 50%;
+                 animation: spin 0.9s linear infinite; margin: 0 auto 16px; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .done-icon { font-size: 48px; color: #34a853; }
     </style>
   </head>
 
   <body>
-    <header>
-      <h5 style="margin:0">Attach or Create Intake</h5>
-      <span class="grey-text text-darken-1">
-        Pick a recent Telephone-Log call<br>or start a new intake tab.
-      </span>
-    </header>
+    <div id="error"></div>
 
-    <!-- loading spinner -->
-    <div id="loader" class="center-align" style="margin:40px 0">
-      <div class="preloader-wrapper active">
-        <div class="spinner-layer spinner-blue-only">
-          <div class="circle-clipper left"><div class="circle"></div></div>
-          <div class="gap-patch"><div class="circle"></div></div>
-          <div class="circle-clipper right"><div class="circle"></div></div>
-        </div>
+    <!-- 1. Pick a call -->
+    <div class="screen" id="s-calls">
+      <h3>New intake tab</h3>
+      <p class="hint">Pick the Telephone Log call this intake is for, or add a client who isn't in the log.</p>
+      <input type="text" id="callSearch" placeholder="Search by name, email, phone or date…" autocomplete="off">
+      <div class="list" id="callList"></div>
+      <div class="sub" id="callCount" style="margin-top:6px"></div>
+    </div>
+
+    <!-- 2. New client -->
+    <div class="screen" id="s-new">
+      <h3>New client</h3>
+      <p class="hint">For a client who isn't in the Telephone Log yet. A log entry is added for them.</p>
+      <label class="field" for="nPatient">Patient name (Last, First) *</label>
+      <input type="text" id="nPatient" autocomplete="off">
+      <label class="field" for="nRp">Responsible party</label>
+      <input type="text" id="nRp" autocomplete="off">
+      <label class="field" for="nEmail">Email</label>
+      <input type="email" id="nEmail" autocomplete="off">
+      <label class="field" for="nPhone">Phone</label>
+      <input type="tel" id="nPhone" autocomplete="off">
+    </div>
+
+    <!-- 3. Choose the form response -->
+    <div class="screen" id="s-match">
+      <h3 id="matchTitle">Choose the form response</h3>
+      <p class="hint" id="matchHint"></p>
+      <div class="who" id="who"></div>
+      <div id="matchList"></div>
+      <span class="linkish" id="browseLink"></span>
+      <div id="browseBlock" style="display:none">
+        <input type="text" id="browseSearch" placeholder="Search responses by name, email or phone…" autocomplete="off" style="margin-top:8px">
+        <div class="list" id="browseList"></div>
       </div>
     </div>
 
-    <!--  Dropdown (Materialize select)  -->
-    <div class="input-field" id="formBlock" style="display:none;">
-      <select id="callSel">
-        <option disabled selected>Loading…</option>
-      </select>
-      <label>Recent calls without an intake</label>
+    <!-- Busy / done -->
+    <div class="screen" id="s-busy"><div class="center"><div class="spinner"></div><div id="busyText"></div></div></div>
+    <div class="screen" id="s-done"><div class="center"><i class="material-icons done-icon">check_circle</i><div id="doneText" style="margin-top:8px"></div></div></div>
+
+    <div class="footer" id="footer">
+      <button class="flat" id="leftBtn"></button>
+      <button class="primary" id="rightBtn"></button>
     </div>
 
-    <!-- Action buttons -->
-    <div id="goBlock" class="row" style="margin: 0;">
-      <div class="col s6 left-align">
-        <button id="newBtn" class="btn grey lighten-3 black-text waves-effect">
-          <i class="material-icons left">add</i>
-          Create New
-        </button>
-      </div>
-      <div class="col s6 right-align">
-        <button id="goBtn" class="btn waves-effect waves-light" disabled>
-          Create from Listing
-          <i class="material-icons right">arrow_forward</i>
-        </button>
-      </div>
-    </div>
-    
-    <!-- overlay while sheet is created -->
-    <div id="createOverlay" style="
-          position:fixed;top:0;left:0;width:100%;height:100%;
-          background:rgba(255,255,255,.8);z-index:1000;display:none;">
-      <div class="center-align" style="margin-top:120px">
-        <div class="preloader-wrapper big active">
-          <div class="spinner-layer spinner-blue-only">
-            <div class="circle-clipper left"><div class="circle"></div></div>
-            <div class="gap-patch"><div class="circle"></div></div>
-            <div class="circle-clipper right"><div class="circle"></div></div>
-          </div>
-        </div>
-        <p style="margin-top:24px">Creating intake tab…</p>
-      </div>
-    </div>
-
-    <!--  Materialize JS & behaviour  -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
     <script>
-      function showForm() {
-        document.getElementById('loader').style.display = 'none';
-        document.getElementById('formBlock').style.display = '';
-        document.getElementById('goBlock').style.display = '';
+      var CONTEXT = <?!= context ?>;
+      var state = { calls: [], call: null, person: null, source: null, matches: null, choice: null, back: null };
+
+      function $(id) { return document.getElementById(id); }
+      function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+      function joinParts(parts) { return parts.filter(function (p) { return p; }).join(' · '); }
+
+      function show(id) {
+        ['s-calls', 's-new', 's-match', 's-busy', 's-done'].forEach(function (s) { $(s).classList.toggle('on', s === id); });
+        $('footer').style.display = (id === 's-busy' || id === 's-done') ? 'none' : 'flex';
       }
-      
-      var sel, goBtn, mSelect;
+      function footer(left, onLeft, right, onRight, rightEnabled) {
+        $('leftBtn').textContent = left; $('leftBtn').onclick = onLeft; $('leftBtn').style.visibility = left ? 'visible' : 'hidden';
+        $('rightBtn').textContent = right; $('rightBtn').onclick = onRight; $('rightBtn').disabled = !rightEnabled;
+      }
+      function busy(text) { $('busyText').textContent = text; show('s-busy'); }
+      function error(msg) { $('error').textContent = msg; $('error').style.display = msg ? 'block' : 'none'; }
+      function done(text) { $('doneText').textContent = text; show('s-done'); setTimeout(function () { google.script.host.close(); }, 1800); }
+      /* Error with nothing to go back to: leave the message and a Close button. */
+      function fatal() {
+        $('busyText').textContent = '';
+        document.querySelector('.spinner').style.display = 'none';
+        $('footer').style.display = 'flex';
+        footer('', null, 'Close', function () { google.script.host.close(); }, true);
+      }
 
-      /* -------- initialise -------- */
+      /* Runs a server function; on failure shows the error and returns to the given screen. */
+      function call(fn, args, onOk, returnTo) {
+        error('');
+        var runner = google.script.run
+          .withSuccessHandler(onOk)
+          .withFailureHandler(function (e) { error(e && e.message ? e.message : String(e)); if (returnTo) returnTo(); });
+        runner[fn].apply(runner, args);
+      }
+
+      /* ---------------- 1. Calls ---------------- */
+      function startCreate() {
+        busy('Loading calls…');
+        call('getOpenCalls', [], function (calls) { state.calls = calls; showCalls(); }, function () { showCalls(); });
+      }
+
+      function showCalls() {
+        show('s-calls');
+        footer('+ New client', showNew, 'Next', nextFromCall, !!state.call);
+        renderCalls();
+        $('callSearch').focus();
+      }
+
+      function renderCalls() {
+        var q = $('callSearch').value.trim().toLowerCase();
+        var list = $('callList');
+        list.innerHTML = '';
+        var shown = state.calls.filter(function (c) {
+          return !q || [c.patientName, c.responsibleParty, c.email, c.phone, c.date].join(' ').toLowerCase().indexOf(q) !== -1;
+        });
+        shown.forEach(function (c) {
+          var row = el('div', 'item' + (state.call === c ? ' sel' : ''));
+          var body = el('div');
+          var main = el('div', 'main', c.patientName || c.responsibleParty || '(no name)');
+          if (c.form === 'exact') main.appendChild(el('span', 'badge b-exact', 'Form received'));
+          if (c.form === 'possible') main.appendChild(el('span', 'badge b-possible', 'Possible form match'));
+          body.appendChild(main);
+          body.appendChild(el('div', 'sub', joinParts([c.patientName && c.responsibleParty ? 'RP: ' + c.responsibleParty : '', c.email, c.phone, c.date])));
+          row.appendChild(body);
+          row.onclick = function () { state.call = c; renderCalls(); footer('+ New client', showNew, 'Next', nextFromCall, true); };
+          row.ondblclick = function () { state.call = c; nextFromCall(); };
+          list.appendChild(row);
+        });
+        if (!shown.length) list.appendChild(el('div', 'empty', state.calls.length ? 'No calls match your search.' : 'Every call in the Telephone Log already has an intake tab.'));
+        $('callCount').textContent = state.calls.length ? shown.length + ' of ' + state.calls.length + ' calls without an intake tab' : '';
+      }
+
+      function nextFromCall() {
+        var c = state.call;
+        if (!c) return;
+        state.source = 'call';
+        state.person = c;
+        state.matches = null;
+        state.back = showCalls;
+        // The list already knows whether there is a UID match or nothing to suggest
+        if (c.form === 'exact') return create({ source: 'call', uid: c.uid });
+        if (c.form === 'none') return create({ source: 'call', uid: c.uid, skipImport: true });
+        loadMatches();
+      }
+
+      /* ---------------- 2. New client ---------------- */
+      function showNew() {
+        show('s-new');
+        footer('Back', showCalls, 'Next', nextFromNew, true);
+        $('nPatient').focus();
+      }
+
+      function nextFromNew() {
+        var p = { patientName: $('nPatient').value.trim(), responsibleParty: $('nRp').value.trim(), email: $('nEmail').value.trim(), phone: $('nPhone').value.trim() };
+        if (!p.patientName) { error('Please enter the patient name.'); return $('nPatient').focus(); }
+        if (p.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email)) { error('"' + p.email + '" is not a valid email address.'); return $('nEmail').focus(); }
+        error('');
+        state.source = 'new';
+        state.person = p;
+        state.matches = null;
+        state.back = showNew;
+        loadMatches();
+      }
+
+      /* ---------------- 3. Matches ---------------- */
+      function loadMatches() {
+        state.choice = null;
+        busy('Looking for their form response…');
+        call('getFormMatches', [state.person], function (m) {
+          state.matches = m;
+          if (CONTEXT.mode === 'create' && !m.exact && !m.suggestions.length) return create(request(null));
+          showMatches();
+        }, function () { (state.back || showCalls)(); });
+      }
+
+      function request(row) {
+        var r = state.source === 'call'
+          ? { source: 'call', uid: state.person.uid }
+          : { source: 'new', patientName: state.person.patientName, responsibleParty: state.person.responsibleParty, email: state.person.email, phone: state.person.phone };
+        if (row) r.responseRow = row; else r.skipImport = true;
+        return r;
+      }
+
+      function showMatches() {
+        var m = state.matches, p = state.person, attach = CONTEXT.mode === 'attach';
+        show('s-match');
+        if (state.choice === null && m.exact) state.choice = m.exact.row;  // kept when returning after an error
+
+        $('matchTitle').textContent = attach ? 'Import form answers' : 'Choose the form response';
+        $('matchHint').textContent = attach
+          ? 'Only empty cells on the tab are filled in. Anything already entered is kept.'
+          : 'No form response has this client’s UID. These responses look like a match. Pick one to import, or continue without.';
+
+        var who = $('who');
+        who.innerHTML = '';
+        who.appendChild(el('div', 'main', p.patientName || p.responsibleParty || '(no name)'));
+        who.appendChild(el('div', 'sub', joinParts([p.patientName && p.responsibleParty ? 'RP: ' + p.responsibleParty : '', p.email, p.phone])));
+
+        var list = $('matchList');
+        list.innerHTML = '';
+        if (m.exact) {
+          list.appendChild(el('div', 'section', 'Linked by UID'));
+          list.appendChild(responseItem(m.exact, 'Form received'));
+        }
+        if (m.suggestions.length) {
+          list.appendChild(el('div', 'section', m.exact ? 'Other possible matches' : 'Possible matches'));
+          var box = el('div', 'list'); box.style.maxHeight = 'none';
+          m.suggestions.forEach(function (r) { box.appendChild(responseItem(r)); });
+          list.appendChild(box);
+        }
+        if (!m.exact && !m.suggestions.length) list.appendChild(el('div', 'empty', 'No form response matches this client’s UID, name, email or phone.'));
+        if (!attach) {
+          var none = el('div', 'list'); none.style.marginTop = '10px';
+          none.appendChild(noneItem());
+          list.appendChild(none);
+        }
+
+        var suggested = {};
+        m.suggestions.concat(m.exact ? [m.exact] : []).forEach(function (r) { suggested[r.row] = true; });
+        state.others = m.unlinked.filter(function (r) { return !suggested[r.row]; });
+        $('browseBlock').style.display = 'none';
+        $('browseSearch').value = '';
+        $('browseLink').style.display = state.others.length ? 'inline-block' : 'none';
+        $('browseLink').textContent = 'Browse all ' + state.others.length + ' other unlinked responses';
+        $('browseLink').onclick = function () { $('browseBlock').style.display = 'block'; $('browseLink').style.display = 'none'; renderBrowse(); $('browseSearch').focus(); };
+
+        if (attach) footer('Cancel', function () { google.script.host.close(); }, 'Import answers', importChosen, !!state.choice);
+        else footer('Back', state.back, 'Create intake tab', createChosen, state.choice !== null);
+        syncSelection();
+      }
+
+      function responseItem(r, badge) {
+        var row = el('label', 'item');
+        var radio = el('input'); radio.type = 'radio'; radio.name = 'resp'; radio.value = r.row;
+        radio.onchange = function () { choose(r.row); };
+        row.appendChild(radio);
+        var body = el('div');
+        var main = el('div', 'main', r.name || r.typedName || '(no name)');
+        if (badge) main.appendChild(el('span', 'badge b-exact', badge));
+        body.appendChild(main);
+        body.appendChild(el('div', 'sub', joinParts(['Submitted ' + (r.date || '?'), r.email, r.phone, 'row ' + r.row])));
+        (r.reasons || []).forEach(function (why) { body.appendChild(el('span', 'chip', why)); });
+        if (r.typedName && r.name) body.appendChild(el('div', 'note', 'Typed “' + r.typedName + '” in the UID box'));
+        if (r.otherCall) body.appendChild(el('div', 'note', 'Sent from a different Telephone Log call'));
+        row.appendChild(body);
+        return row;
+      }
+
+      function noneItem() {
+        var row = el('label', 'item');
+        var radio = el('input'); radio.type = 'radio'; radio.name = 'resp'; radio.value = 'none';
+        radio.onchange = function () { choose('none'); };
+        row.appendChild(radio);
+        var body = el('div');
+        body.appendChild(el('div', 'main', 'None of these'));
+        body.appendChild(el('div', 'sub', 'Create the tab without form answers. You can import them later from Intake Tools → Import Form Answers.'));
+        row.appendChild(body);
+        return row;
+      }
+
+      function renderBrowse() {
+        var q = $('browseSearch').value.trim().toLowerCase();
+        var list = $('browseList');
+        list.innerHTML = '';
+        var shown = state.others.filter(function (r) {
+          return !q || [r.name, r.typedName, r.email, r.phone, r.date].join(' ').toLowerCase().indexOf(q) !== -1;
+        });
+        shown.forEach(function (r) { list.appendChild(responseItem(r)); });
+        if (!shown.length) list.appendChild(el('div', 'empty', 'No responses match your search.'));
+        syncSelection();
+      }
+
+      function choose(value) {
+        state.choice = value;
+        syncSelection();
+        $('rightBtn').disabled = false;
+      }
+
+      function syncSelection() {
+        document.querySelectorAll('input[name=resp]').forEach(function (i) {
+          i.checked = String(state.choice) === i.value;
+          i.parentNode.classList.toggle('sel', i.checked);
+        });
+      }
+
+      function createChosen() {
+        create(request(state.choice === 'none' ? null : Number(state.choice)));
+      }
+
+      function importChosen() {
+        if (!state.choice) return;
+        busy('Importing form answers…');
+        call('importFormAnswers', [CONTEXT.sheetName, Number(state.choice)], function () {
+          done('Form answers imported into “' + CONTEXT.sheetName + '”.');
+        }, showMatches);
+      }
+
+      /* ---------------- Create ---------------- */
+      function create(req) {
+        busy('Creating intake tab…');
+        var returnTo = state.matches ? showMatches : (state.source === 'new' ? showNew : showCalls);
+        call('createIntake', [req], function (res) {
+          done('Created “' + res.sheetName + '”' + (res.imported
+            ? ' and imported the form answers.'
+            : '. No form answers were imported. When the form comes in, use Intake Tools → Import Form Answers.'));
+        }, returnTo);
+      }
+
+      /* ---------------- Start ---------------- */
       document.addEventListener('DOMContentLoaded', function () {
-        sel   = document.getElementById('callSel');
-        goBtn = document.getElementById('goBtn');
-
-        google.script.run
-          .withSuccessHandler(function(list) {
-            populate(list);
-            goBtn.disabled = false;
-            showForm();
-          })
-          .withFailureHandler(function(e) {
-            console.error('Error fetching TL rows:', e);
-            populate([]);
-            showForm();
-          })
-          .listOpenTLRows();                 // <-- public wrapper in .gs file
-
-
-              /*  bottom-right “Create from Listing”  */
-        goBtn.addEventListener('click', function () {
-          var uid = sel.value;
-          if (!uid) return;
-          showCreatingSpinner(true);
-          google.script.run
-            .withSuccessHandler(function () {google.script.host.close();})
-            .withFailureHandler(function () { showCreatingSpinner(false); })
-            .createIntakeFromDialog(uid);
-        });
-        });
-        
-        /* -------- build the list -------- */
-        function populate(list) {
-          sel.innerHTML = '';                   // wipe “Loading…”
-          list.forEach(function (item) { addOption(item.uid, item.label); });
-
-          mSelect = M.FormSelect.init(sel);     // Materialize-ify
-        }
-
-        /* helper */
-        function addOption(val, txt) {
-          var o = document.createElement('option');
-          o.value = val; o.textContent = txt;
-          sel.appendChild(o);
-        }
-
-        /* -------- final action -------- */
-        function showCreatingSpinner(display=true){
-          document.getElementById('createOverlay').style.display = display?'':'none';
-          if (display) {                         // hide everything underneath
-            document.getElementById('loader').style.display     = 'none';
-            document.getElementById('formBlock').style.display  = 'none';
-            document.getElementById('goBlock').style.display    = 'none';
-          }
-        }
-
-        /*  bottom-left “Create New”  */
-        document.getElementById('newBtn').addEventListener('click', function () {
-          showCreatingSpinner(true);
-          google.script.run
-            .withSuccessHandler(function () {google.script.host.close();})
-            .withFailureHandler(function () { showCreatingSpinner(false); })
-            .createIntakeFromDialog('NEW');
+        $('callSearch').addEventListener('input', renderCalls);
+        $('browseSearch').addEventListener('input', renderBrowse);
+        document.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' && !$('rightBtn').disabled && $('footer').style.display !== 'none') $('rightBtn').click();
         });
 
+        if (CONTEXT.mode === 'attach') {
+          busy('Looking for form responses…');
+          call('getIntakeTabPerson', [CONTEXT.sheetName], function (p) {
+            state.person = p;
+            call('getFormMatches', [p], function (m) { state.matches = m; showMatches(); }, fatal);
+          }, fatal);
+        } else {
+          startCreate();
+        }
+      });
     </script>
   </body>
 </html>

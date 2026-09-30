@@ -2,21 +2,144 @@
  * FORMS & EMAILS
  * ================================================================ */
 
-function getFormResponseForUid_(uid) {
+/* ---------- FORM RESPONSE LOOKUP & MATCHING --------------------- */
+
+const UID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const NAME_MATCH_MIN = 0.85;     // name similarity needed to suggest a response
+const MAX_SUGGESTIONS = 5;
+
+/** All Form Responses rows as objects (row = sheet row number). */
+function readFormResponses_() {
+  const fs = SS.getSheetByName(CONFIG.FORM_RESPONSES);
+  if (!fs || fs.getLastRow() <= 1) return [];
+
+  const rows = fs.getRange(2, 1, fs.getLastRow() - 1, CONFIG.FR_TOTAL_COLUMNS).getValues();
+  return rows.map((r, i) => {
+    const uid = String(r[CONFIG.FR_COL_UID - 1] || '').trim();
+    return {
+      row:       i + 2,
+      timestamp: r[CONFIG.FR_COL_TIMESTAMP - 1],
+      name:      String(r[CONFIG.FR_COL_RESPONSIBLE_PARTY - 1] || '').trim(),
+      uid,
+      typedName: uid && !UID_PATTERN.test(uid) ? uid : '',  // families without the prefilled link sometimes type a name here
+      email:     String(r[CONFIG.FR_COL_EMAIL - 1] || '').trim(),
+      phone:     String(r[CONFIG.FR_COL_PHONE - 1] || '').trim()
+    };
+  }).filter(x => x.timestamp !== '' || x.uid || x.name);
+}
+
+/** UIDs (lower-case) that already have an intake tab, per the registry. */
+function uidsWithIntake_() {
+  const reg = SS.getSheetByName(CONFIG.REGISTRY);
+  const taken = new Set();
+  if (!reg || reg.getLastRow() <= 1) return taken;
+  reg.getRange(2, 1, reg.getLastRow() - 1, CONFIG.REG_COL_HAS_INTAKE).getValues().forEach(r => {
+    if (r[CONFIG.REG_COL_HAS_INTAKE - 1] === true && r[CONFIG.REG_COL_UID - 1]) taken.add(String(r[CONFIG.REG_COL_UID - 1]).trim().toLowerCase());
+  });
+  return taken;
+}
+
+/**
+ * Finds the form response for a person.
+ * person: { uid, patientName, responsibleParty, email, phone }
+ * Returns { exact, suggestions, unlinked } — exact is the response carrying the person's UID (latest wins);
+ * suggestions are strong email / phone / name matches among responses not already linked to another intake;
+ * unlinked is every response not linked to an intake (for browsing).
+ */
+function findFormMatches_(person, responses, takenUids) {
+  const uid = String(person.uid || '').trim().toLowerCase();
+  const exact = uid ? responses.filter(r => r.uid.toLowerCase() === uid).pop() || null : null;
+
+  const available = responses.filter(r => r !== exact && !(r.uid && r.uid.toLowerCase() !== uid && takenUids.has(r.uid.toLowerCase())));
+  if (exact) return { exact, suggestions: [], unlinked: available };
+
+  const email = String(person.email || '').trim().toLowerCase();
+  const phone = phoneKey_(person.phone);
+  const names = [person.patientName, person.responsibleParty].filter(Boolean);
+
+  const suggestions = [];
+  available.forEach(r => {
+    const reasons = [];
+    let score = 0;
+    if (validateEmail(email) && r.email.toLowerCase() === email) { reasons.push('Same email'); score = Math.max(score, 100); }
+    if (phone && phoneKey_(r.phone) === phone) { reasons.push('Same phone'); score = Math.max(score, 90); }
+
+    let bestName = 0;
+    names.forEach(n => [r.name, r.typedName].forEach(rn => { bestName = Math.max(bestName, nameScore_(n, rn)); }));
+    if (bestName >= NAME_MATCH_MIN) {
+      reasons.push(bestName === 1 ? 'Same name' : `Similar name (${Math.round(bestName * 100)}%)`);
+      score = Math.max(score, Math.round(bestName * 85));
+    }
+
+    if (reasons.length) suggestions.push(Object.assign({}, r, { reasons, score: score + (reasons.length - 1) * 10 }));
+  });
+
+  suggestions.sort((a, b) => (b.score - a.score) || (timeOf_(b.timestamp) - timeOf_(a.timestamp)));
+  return { exact: null, suggestions: suggestions.slice(0, MAX_SUGGESTIONS), unlinked: available };
+}
+
+/** Name similarity 0–1, ignoring case, accents, punctuation and word order ("Smith, Jane" = "Jane Smith"). */
+function nameScore_(a, b) {
+  const words = s => {
+    let t = String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    if (t.includes(',')) t = t.split(',').reverse().join(' ');
+    return t.replace(/[^a-z\s]/g, ' ').split(/\s+/).filter(Boolean);
+  };
+  const x = words(a), y = words(b);
+  if (!x.length || !y.length) return 0;
+  return Math.max(
+    nameSimilarity(x.join(' '), y.join(' ')),
+    nameSimilarity(x.slice().sort().join(' '), y.slice().sort().join(' '))
+  );
+}
+
+function phoneKey_(phone) {
+  const digits = String(phone || '').replace(/\D/g, '');
+  return digits.length >= 7 ? digits.slice(-10) : '';
+}
+
+function timeOf_(d) {
+  return d && typeof d.getTime === 'function' && !isNaN(d.getTime()) ? d.getTime() : 0;
+}
+
+/** Puts the intake's UID on a form response so every UID-based lookup finds it. Keeps what the family typed as a note. */
+function linkFormResponse_(row, uid) {
   const fs = sheet_(CONFIG.FORM_RESPONSES);
-  if (!fs || fs.getLastRow() <= 1) return null;
+  const cell = fs.getRange(row, CONFIG.FR_COL_UID);
+  const current = String(cell.getValue() || '').trim();
+  if (current === uid) return;
 
-  const UID_COL = CONFIG.FR_COL_UID;
-  const TOTAL_COLUMNS = CONFIG.FR_TOTAL_COLUMNS;
+  if (current) {
+    const when = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'MM/dd/yyyy');
+    cell.setNote(`Originally entered: "${current}"\nLinked to an intake tab on ${when}.`);
+  }
+  cell.setValue(uid);
+}
 
-  const headers = fs.getRange(1, 1, 1, TOTAL_COLUMNS).getValues()[0];
-  const uidCol  = fs.getRange(2, UID_COL, fs.getLastRow() - 1, 1).getValues().flat();
-  const idx = uidCol.lastIndexOf(uid);
+/** Links a form response to the intake, pastes its answers into the tab and marks the form as submitted. */
+function importFormResponseRow_(sheet, row, uid, options = {}) {
+  const fs = sheet_(CONFIG.FORM_RESPONSES);
+  const answers = fs.getRange(row, 1, 1, CONFIG.FR_TOTAL_COLUMNS).getValues()[0];
 
-  if (idx === -1) return null;
+  linkFormResponse_(row, uid);
+  pasteFormAnswersToIntakeStructured_(sheet, { answers }, options);
+  markIntakeFormSubmitted_(uid);
+}
 
-  const answers = fs.getRange(idx + 2, 1, 1, TOTAL_COLUMNS).getValues()[0];
-  return { questions: headers, answers };
+/** Ticks "form submitted" in the Telephone Log and Email History for this UID. */
+function markIntakeFormSubmitted_(uid) {
+  const tl = SS.getSheetByName(CONFIG.TELEPHONE_LOG);
+  const tlRow = findRowByUid_(tl, uid, CONFIG.TL_COL_UID, CONFIG.TL_HEADER_ROWS);
+  if (tlRow) tl.getRange(tlRow, CONFIG.TL_COL_FORM_SUBMITTED).setValue(true);
+
+  const hist = SS.getSheetByName(CONFIG.HISTORY);
+  if (!hist) return;
+  const data = hist.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][CONFIG.HISTORY_COL_UID - 1] === uid && data[i][CONFIG.HISTORY_COL_FORM - 1] === 'INTAKE') {
+      hist.getRange(i + 1, CONFIG.HISTORY_COL_SUBMITTED).setValue(true);
+    }
+  }
 }
 
 /** Checks "Responded to inquiry" (column B) on every form response with this UID. */
@@ -30,7 +153,8 @@ function markFormResponseResponded_(uid) {
   });
 }
 
-function pasteFormAnswersToIntakeStructured_(sheet, qa) {
+/** options.onlyEmpty: fill only empty cells (for tabs staff have already worked on). */
+function pasteFormAnswersToIntakeStructured_(sheet, qa, options = {}) {
   const val  = colIndex => qa.answers[colIndex - 1] || '';
   const join = colIndexes => colIndexes.map(val).filter(Boolean).join('\n');
 
@@ -59,10 +183,15 @@ function pasteFormAnswersToIntakeStructured_(sheet, qa) {
   // ----------------------------------
 
   Object.entries(MAP).forEach(([cell, value]) => {
-    if (value) sheet.getRange(cell).setValue(value);
+    if (!value) return;
+    const range = sheet.getRange(cell);
+    if (options.onlyEmpty && range.getValue() !== '') return;
+    range.setValue(value);
   });
-  
-  sheet.getRange('B40').setValue('Google-Form answers imported automatically').setFontStyle('italic').setFontSize(9).setBackground('#f5f5ff');
+
+  const marker = sheet.getRange('B40');
+  if (options.onlyEmpty && marker.getValue() !== '') return;
+  marker.setValue('Google-Form answers imported automatically').setFontStyle('italic').setFontSize(9).setBackground('#f5f5ff');
 }
 
 function sendForm_(formKey, { uid, email, patient = '', responsible = '', apptDate = '' }) {

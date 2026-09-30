@@ -6,6 +6,7 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('Intake Tools')
     .addItem('✙🧍‍♂️ New Intake Tab', 'openIntakeCreator')
+    .addItem('📥 Import Form Answers into This Tab', 'openFormAnswerImporter')
     .addSeparator()
     .addItem('✙📒 New Telephone Log Entry', 'addNewTelephoneLogEntry')
     .addSeparator()
