@@ -204,15 +204,16 @@ function sendForm_(formKey, { uid, email, patient = '', responsible = '', apptDa
   }
 
   const displayName = cfg.displayName || formKey;
-  const confirm = confirmSend_(displayName, responsible || patient, email);
-  if (!confirm.ok) return false;
-  responsible = confirm.responsible;
 
+  // Already sent? Say so in the confirmation
   const history = sheet_(CONFIG.HISTORY);
   const rows = history.getDataRange().getValues();
-  if (rows.some(r => r[CONFIG.HISTORY_COL_UID-1] === uid && r[CONFIG.HISTORY_COL_FORM-1] === formKey && r[CONFIG.HISTORY_COL_SENT-1] === true)) {
-    return false; // Already sent
-  }
+  const previous = rows.find(r =>
+    r[CONFIG.HISTORY_COL_UID-1] === uid && r[CONFIG.HISTORY_COL_FORM-1] === formKey && r[CONFIG.HISTORY_COL_SENT-1] === true);
+
+  const confirm = confirmSend_(displayName, responsible || patient, email, previous ? previous[CONFIG.HISTORY_COL_DATE-1] : null, !!previous);
+  if (!confirm.ok) return false;
+  responsible = confirm.responsible;
 
   // 2. SMART URL CONSTRUCTION
   // Auto-protect: specific replacement ensures patients always get the VIEW link
@@ -243,18 +244,22 @@ function sendForm_(formKey, { uid, email, patient = '', responsible = '', apptDa
   return true;
 }
 
-function confirmSend_(displayName, responsible, email) {
+function confirmSend_(displayName, responsible, email, sentOn, alreadySent) {
   const ui = SpreadsheetApp.getUi();
   responsible = String(responsible || '').trim();
 
+  const title = alreadySent ? `Send ${displayName} again?` : `Send ${displayName}?`;
+  const when = timeOf_(sentOn) ? ` on ${Utilities.formatDate(sentOn, Session.getScriptTimeZone(), 'MM/dd/yyyy')}` : '';
+  const again = alreadySent ? `“${displayName}” was already sent${when}.\n\n` : '';
+
   if (responsible) {
-    const yesNo = ui.alert(`Send ${displayName}?`, `Would you like to send “${displayName}” to “${responsible}” (${email})?`, ui.ButtonSet.YES_NO);
+    const yesNo = ui.alert(title, `${again}Would you like to send “${displayName}” to “${responsible}” (${email})?`, ui.ButtonSet.YES_NO);
     return (yesNo === ui.Button.YES) ? { ok: true, responsible } : { ok: false };
   }
 
   // No name on file: ask for one. Left blank, the email uses its general greeting (e.g. "Dear Friend").
-  const prompt = ui.prompt(`Send ${displayName}`,
-    `Sending “${displayName}” to ${email}.\n\nEnter the recipient’s name for the greeting, or leave blank for a general greeting:`,
+  const prompt = ui.prompt(title,
+    `${again}Sending “${displayName}” to ${email}.\n\nEnter the recipient’s name for the greeting, or leave blank for a general greeting:`,
     ui.ButtonSet.OK_CANCEL);
   if (prompt.getSelectedButton() !== ui.Button.OK) return { ok: false };
   return { ok: true, responsible: prompt.getResponseText().trim() };
