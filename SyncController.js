@@ -208,6 +208,13 @@ function syncNotInterested_(uid, newVal, source) {
   });
 }
 
+/** Puts the telehealth appointment (e.g. "10/08/2026 3:00 PM") in the Telephone Log's "Televisit scheduled" column. */
+function syncTelevisitScheduled_(uid, appointment) {
+  const tl = SS.getSheetByName(CONFIG.TELEPHONE_LOG);
+  const row = findRowByUid_(tl, uid, CONFIG.TL_COL_UID, CONFIG.TL_HEADER_ROWS);
+  if (row) tl.getRange(row, CONFIG.TL_COL_TELEVISIT_SCHED).setValue(appointment);
+}
+
 function addNewTelephoneLogEntry() {
   const tlSheet = sheet_(CONFIG.TELEPHONE_LOG);
   if (!tlSheet) return;

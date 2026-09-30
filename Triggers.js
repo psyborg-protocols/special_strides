@@ -108,6 +108,7 @@ function editHandler(e) {
          } else if (validateEmail(email)) {
              if (sendForm_('TELEHEALTH_APPT', { uid, email, responsible: sh.getRange(CONFIG.INTAKE_CELL_RESPONSIBLE_PARTY).getValue(), apptDate: `${dateStr}, at ${timeStr}` })) {
                  sh.getRange(CONFIG.INTAKE_TAB_TELEHEALTH_LINK_NOTE).setValue('Link Sent!');
+                 syncTelevisitScheduled_(uid, `${dateStr} ${timeStr}`);
              }
          } else { 
             // WARN: Missing Email
