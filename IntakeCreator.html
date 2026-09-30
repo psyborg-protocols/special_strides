@@ -254,8 +254,8 @@
         var list = $('matchList');
         list.innerHTML = '';
         if (m.exact) {
-          list.appendChild(el('div', 'section', 'Linked by UID'));
-          list.appendChild(responseItem(m.exact, 'Form received'));
+          list.appendChild(el('div', 'section', attach ? 'This tab’s form response' : 'This client’s form response'));
+          list.appendChild(responseItem(m.exact, 'Same UID'));
         }
         if (m.suggestions.length) {
           list.appendChild(el('div', 'section', m.exact ? 'Other possible matches' : 'Possible matches'));

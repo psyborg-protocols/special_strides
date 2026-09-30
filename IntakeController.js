@@ -40,10 +40,11 @@ function getOpenCalls() {
 /** Form response matches for a call, a new client or an existing intake tab. */
 function getFormMatches(person) {
   const m = findFormMatches_(person, readFormResponses_(), uidsWithIntake_());
+  const summary = r => responseSummary_(r, person.uid);
   return {
-    exact:       m.exact ? responseSummary_(m.exact) : null,
-    suggestions: m.suggestions.map(responseSummary_),
-    unlinked:    m.unlinked.slice().sort((a, b) => timeOf_(b.timestamp) - timeOf_(a.timestamp)).map(responseSummary_)
+    exact:       m.exact ? summary(m.exact) : null,
+    suggestions: m.suggestions.map(summary),
+    unlinked:    m.unlinked.slice().sort((a, b) => timeOf_(b.timestamp) - timeOf_(a.timestamp)).map(summary)
   };
 }
 
@@ -177,7 +178,7 @@ function callFromRow_(r) {
 }
 
 /** What the dialog shows for a form response. */
-function responseSummary_(r) {
+function responseSummary_(r, personUid) {
   return {
     row:       r.row,
     date:      timeOf_(r.timestamp) ? Utilities.formatDate(r.timestamp, Session.getScriptTimeZone(), 'MM/dd/yy') : '',
@@ -185,7 +186,7 @@ function responseSummary_(r) {
     typedName: r.typedName,
     email:     r.email,
     phone:     r.phone,
-    otherCall: UID_PATTERN.test(r.uid),   // carries another call's UID (that call has no intake yet)
+    otherCall: UID_PATTERN.test(r.uid) && r.uid.toLowerCase() !== String(personUid || '').trim().toLowerCase(),  // carries another call's UID
     reasons:   r.reasons || []
   };
 }
